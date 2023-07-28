@@ -22,11 +22,10 @@ final class App
     /**
      * Inicia a aplicação.
      */
-    public static function run( $dirbase = null, $document_root = null )
+    public static function run( $dirbase = null )
     {
-
         self::setInitialHeaders();
-        self::defines( $dirbase, $document_root );
+        self::defines( $dirbase );
         self::configPHPEnv();
         self::defineProductPaths();
         Env::setEnv();
@@ -54,14 +53,13 @@ final class App
     private static function setInitialHeaders()
     {
         header( 'Content-Type: text/plain; charset=UTF-8' );
-        header( 'X-Powered-By: JF Framework/PHP 8.1');
-        header( 'Git Reference: https://github.com/marciojalber/jf-framework-php');
+        header( 'X-Powered-By: JF Framework/PHP 8.1 - https://github.com/marciojalber/jf-framework-php');
     }
 
     /**
      * Define as constantes.
      */
-    private static function defines( $dirbase, $document_root )
+    private static function defines( $dirbase )
     {
         // Sistema operacional
         define( 'WIN',              substr( PHP_OS, 0, 3 ) == 'WIN' );
@@ -69,10 +67,7 @@ final class App
         // Pastas da aplicação
         define( 'DIR_CORE',             str_replace( '\\', '/', __DIR__ ) );
         define( 'DIR_GUIDE',            dirname( DIR_CORE ) . '/guide' );
-        $document_root  = $document_root
-            ? $document_root
-            : $_SERVER[ 'DOCUMENT_ROOT' ];
-        $len_rootpath   = strlen( $document_root );
+        $len_rootpath   = strlen( $_SERVER[ 'DOCUMENT_ROOT' ] );
         $dirbase        = $dirbase
             ? str_replace( '\\', '/', $dirbase )
             : str_replace( '\\', '/', dirname( dirname( DIR_CORE ) ) );

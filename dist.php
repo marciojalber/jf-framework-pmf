@@ -22,8 +22,7 @@ class PHPCompiler
 	 */
 	public static function init( $target )
 	{
-		if ( file_exists( 'jf.phar' ) )
-			unlink( 'jf.phar' );
+		file_exists( 'jf.phar' ) && unlink( 'jf.phar' );
 
 		$instance 		= new self();
 		$instance->phar = new \Phar( 'jf.phar', 0 );
@@ -55,7 +54,7 @@ class PHPCompiler
 		$def_stub = $this->phar->createDefaultStub( 'App.php' );
 		$this->phar->setStub( $def_stub );
 
-		header( 'Content-Type: plain/text' );
+		header( 'Content-Type: application/json' );
 		echo 'fim: ' . date( 'd/m/Y H:i:s' );
 	}
 
