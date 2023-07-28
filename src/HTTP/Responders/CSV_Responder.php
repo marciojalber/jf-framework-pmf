@@ -54,6 +54,8 @@ class CSV_Responder extends Responder
         foreach ( $data as $row )
             $file->fputcsv( $row, $separator, $enclosure );
 
+        $file->rewind();
+        
         $length         = $file->fstat()['size'];
         $content        = $file->fread( $length );
         $file           = null;
