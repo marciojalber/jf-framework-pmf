@@ -91,8 +91,6 @@ final class ParserHTML
         file_put_contents( $page_path, $result->html );
         file_put_contents( $log_path, json_encode( $new_parse, $pretty_json ) );
         file_put_contents( $parts_path, json_encode( $result->parts, $pretty_json ) );
-
-        self::makePermissionsMixin( $route, $result->permissions );
     }
 
     /**
@@ -151,21 +149,6 @@ final class ParserHTML
     public static function path( $route, $filename )
     {
         return DIR_VIEWS . "/$route/$filename";
-    }
-
-    /**
-     * Cria o arquivo com as permissões requeridas pela página.
-     */
-    public static function makePermissionsMixin( $route, $permissions )
-    {
-        $path_route     = DIR_UI . '/pages/' . $route;
-        Dir::makeDir( $path_route );
-
-        $file_mixin     = $path_route . '/permissions.js';
-
-        $permissions    = json_encode( array_values( $permissions ) );
-        $mixin_content  = "var permissionsRequired = $permissions;";
-        file_put_contents( $file_mixin, $mixin_content );
     }
 
     /**

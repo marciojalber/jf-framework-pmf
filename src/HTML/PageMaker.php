@@ -70,11 +70,6 @@ final class PageMaker
     /**
      * Permissões utilizadas na página.
      */
-    protected $permissions          = [];
-
-    /**
-     * Permissões utilizadas na página.
-     */
     protected $webcomponents        = [];
 
     /**
@@ -189,7 +184,6 @@ final class PageMaker
 
         $response           = [
             'depends'       => $this->depends,
-            'permissions'   => $this->permissions,
             'html'          => $this->html,
             'parts'         => $this->parts,
         ];
@@ -337,15 +331,6 @@ final class PageMaker
             : $relative_path;
         
         return $real_path;
-    }
-
-    /**
-     * Invoca uma permissão para a tela.
-     */
-    public function permission( $permission )
-    {
-        $this->permissions[ $permission ] = $permission;
-        return "usuario.permissoes.includes( '$permission' )";
     }
 
     /**
