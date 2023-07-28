@@ -23,6 +23,11 @@ final class PageMaker
     protected $config               = [];
 
     /**
+     * Configurações da página.
+     */
+    protected $permissions          = [];
+
+    /**
      * Plugins da página.
      */
     protected $plugins              = [];
@@ -94,11 +99,12 @@ final class PageMaker
     {
         if ( $documentator )
         {
-            $this->data     = (object) Config::get( 'doc.data' );
-            $this->config   = (object) [
+            $this->data         = (object) Config::get( 'doc.data' );
+            $this->config       = (object) [
                 'layout'    => Config::get( 'doc.default_layout', 'layout' ),
             ];
-            $this->html     = $route_content;
+            $this->permissions  = [];
+            $this->html         = $route_content;
             return;
         }
 
@@ -112,9 +118,10 @@ final class PageMaker
             ],
         ];
 
-        $this->data         = array_merge( $data, (array) Config::get( 'ui.data' ) );
         $this->route        = $route_content;
         $this->config       = [ 'layout' => Config::get( 'ui.default_layout', 'main' ) ];
+        $this->permissions  = [];
+        $this->data         = array_merge( $data, (array) Config::get( 'ui.data' ) );
     }
     
     /**
@@ -143,19 +150,26 @@ final class PageMaker
         
         if ( file_exists( $view_ini ) )
         {
-            $ini            = parse_ini_file( $view_ini, true );
-            $this->config   = isset( $ini[ 'CONFIG' ] )
+            $ini                = parse_ini_file( $view_ini, true );
+            $this->config       = isset( $ini[ 'CONFIG' ] )
                 ? array_merge( $this->config, $ini[ 'CONFIG' ] )
                 : $this->config;
-            $this->plugins  = isset( $ini[ 'PLUGINS' ] )
+            $this->permissions  = isset( $ini[ 'PERMISSIONS' ] )
+                ? array_merge( $this->permissions, $ini[ 'PERMISSIONS' ] )
+                : $this->permissions;
+            $this->plugins      = isset( $ini[ 'PLUGINS' ] )
                 ? array_merge( $this->plugins, $ini[ 'PLUGINS' ] )
                 : $this->plugins;
-            $this->data     = isset( $ini[ 'DATA' ] )
+            $this->data         = isset( $ini[ 'DATA' ] )
                 ? array_merge( (array) $this->data, $ini[ 'DATA' ] )
                 : $this->data;
         }
 
+        foreach ( $this->permissions as &$item )
+            $item           = preg_split( '@ *, *@', $item );
+
         $this->config       = json_decode( json_encode( $this->config ) );
+        $this->permissions  = json_decode( json_encode( $this->permissions ) );
         $this->plugins      = json_decode( json_encode( $this->plugins ) );
         $this->data         = json_decode( json_encode( $this->data ) );
         $this->partsPoint[] = 'view.php';
