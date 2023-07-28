@@ -45,11 +45,7 @@ class CSV_Responder extends Responder
             }
         }
         
-        $tmp_dir        = DIR_PRODUCTS . "/temp";
-        file_exists( $tmp_dir ) || Dir::makeDir( $tmp_dir );
-        $tmp_filename   = microtime( true ) * 10000;
-        $tmp_filename   = "{$tmp_dir}/{$tmp_filename}.csv";
-        $file           = new \SplFileObject( $tmp_filename, 'w' );
+        $file           = new \SplTempFileObject( 100 * 1024 * 1024 );
         $separator      = $controller_obj->separator();
         $enclosure      = $controller_obj->enclosure();
         
@@ -58,12 +54,13 @@ class CSV_Responder extends Responder
         foreach ( $data as $row )
             $file->fputcsv( $row, $separator, $enclosure );
 
+        $length         = $file->fstat()['size'];
+        $content        = $file->fread( $length );
         $file           = null;
 
         header( "Content-Disposition: attachment; filename=$filename" );
-        header( "Content-Length: " . filesize( $tmp_filename ) );
-        readfile( $tmp_filename );
-        unlink( $tmp_filename );
+        header( "Content-Length: " . $length );
+        echo $content;
     }
 
     /**
