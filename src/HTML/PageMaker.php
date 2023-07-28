@@ -11,7 +11,7 @@ use JF\Exceptions\ErrorException;
 /**
  * Monta páginas HTML.
  */
-final class PageMaker
+final class PageMaker extends \StdClass
 {
     use PageMakerCSS;
     use PageMakerJS;
@@ -172,6 +172,7 @@ final class PageMaker
         $this->permissions  = json_decode( json_encode( $this->permissions ) );
         $this->plugins      = json_decode( json_encode( $this->plugins ) );
         $this->data         = json_decode( json_encode( $this->data ) );
+        $this->dateTime     = date( 'Y-m-d H:i:s' );
         $this->partsPoint[] = 'view.php';
         $this->parts        = [ 'view.php' => [] ];
 
