@@ -54,6 +54,11 @@ class DB
     /**
      * Armazena os dados a serem utilizados na consulta.
      */
+    protected $sql              = null;
+
+    /**
+     * Armazena os dados a serem utilizados na consulta.
+     */
     protected $data             = [];
 
     /**
@@ -94,7 +99,7 @@ class DB
         if ( isset( static::$instances[ $schema_name ] ) )
         {
             $instance           = static::$instances[ $schema_name ];
-            $instance->opts     = array();
+            $instance->opts     = [];
             
             /*
             foreach ( self::$globalVars as $key => $val )
@@ -241,13 +246,27 @@ class DB
     /**
      * Executa a SQL.
      */
-    public function execute( $sql, array $data = array(), $emulate_prepares = false )
+    public function prepareSQL( $sql, array $data = [] )
     {
-        // Acerta os valores passados como ARRAY
-        $this->data     = array();
+        $this->data     = [];
 
         foreach ( $data as $key => $value )
             self::fixDataQuery( $key, $value, $sql );
+
+        return (object) [
+            'sql'   => $sql,
+            'data'  => $this->data,
+        ];
+    }
+
+    /**
+     * Executa a SQL.
+     */
+    public function execute( $sql, array $data = [], $emulate_prepares = false )
+    {
+        $prepared_sql   = $this->prepareSQL( $sql, $data );
+        $sql            = $prepared_sql->sql;
+        $data           = $prepared_sql->data;
 
         // Tenta executar a SQL
         $old_emulation  = $this->pdo->getAttribute( \PDO::ATTR_EMULATE_PREPARES );
@@ -275,7 +294,7 @@ class DB
         }
         
         // Guarda informações locais e retorna o objeto
-        $this->success  = $stmt->execute( $this->data );
+        $this->success  = $stmt->execute( $data );
         
         $this->pdo->setAttribute( \PDO::ATTR_EMULATE_PREPARES, $old_emulation );
         
@@ -305,7 +324,7 @@ class DB
             throw new Error( $msg );
         }
 
-        $new_keys   = array();
+        $new_keys   = [];
         $values     = is_array( $value )
             ? $value
             : (array) $value;
