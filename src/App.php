@@ -54,7 +54,8 @@ final class App
     private static function setInitialHeaders()
     {
         header( 'Content-Type: text/plain; charset=UTF-8' );
-        header( 'X-Powered-By: JF Framework/PHP 8.1 - https://github.com/marciojalber/jf-framework-php');
+        header( 'X-Powered-By: JF Framework/PHP 8.1');
+        header( 'Git Reference: https://github.com/marciojalber/jf-framework-php');
     }
 
     /**
