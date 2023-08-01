@@ -3,6 +3,7 @@
 namespace JF\DB;
 
 use JF\DB\SQL\SQL;
+use JF\Exceptions\WarningException as Warning;
 
 /**
  * Data Access Object - Classe para acesso aos dados de uma tabela.
@@ -15,6 +16,16 @@ class DAO
     protected $dto;
 
     /**
+     * Mensagem de alerta em caso de valor de referência vazio.
+     */
+    protected $msgOnEmpty;
+
+    /**
+     * Mensagem de erro em caso de falha na execução da operação.
+     */
+    protected $msgOnFail;
+
+    /**
      * Pesquisa simples por um registro na tabela.
      */
     public function __construct( $dto )
@@ -23,10 +34,38 @@ class DAO
     }
 
     /**
+     * Se o valor passado estiver vazio, lança uma exceção de alerta.
+     */
+    public function onEmpty( $msg )
+    {
+        $this->msgOnEmpty = $msg;
+        return $this;
+    }
+
+    /**
+     * Se o valor passado estiver vazio, lança uma exceção de erro.
+     */
+    public function onFail( $msg )
+    {
+        $this->msgOnFail = $msg;
+        return $this;
+    }
+
+    /**
      * Pesquisa simples por um registro na tabela.
      */
     public function find( $value, $search = null, $opts = [] )
     {
+        if ( !$value )
+        {
+            if ( $this->msgOnEmpty )
+                throw new Warning( $this->msgOnEmpty );
+            
+            return is_array( $value )
+                ? []
+                : null;
+        }
+
         $dto            = $this->dto;
         $new_opts       = [
             'class'         => get_class( new $dto ),
@@ -46,14 +85,15 @@ class DAO
             ->where( $search, $operator, $value );
 
         if ( !is_array( $value ) )
-        {
             $sql->limit( 1 );
-        }
 
         $sql            = $sql->sql();
         $result         = DB::instance( $dto::schema() )
             ->execute( $sql->sql, $sql->data, $dto::isView() )
             ->$method( $dto::dbOptions() );
+
+        if ( !$result && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
 
         return $result;
     }
@@ -147,6 +187,9 @@ class DAO
      */
     public function update( $value = null, $search = null, $values = [], $opts = [] )
     {
+        if ( !$value && $this->msgOnEmpty )
+            throw new Warning( $this->msgOnEmpty );
+
         $dto            = $this->dto;
         $sql            = SQL::update( $dto::table(), null, $dto );
         $search         = $search ?? $dto::primaryKey();
@@ -161,6 +204,9 @@ class DAO
 
         if ( $values )
             $sql->set( $values );
+
+        if ( $this->msgOnFail )
+            $sql->onFail( $this->msgOnFail );
         
         return $sql;
     }
@@ -170,6 +216,9 @@ class DAO
      */
     public function delete( $value = null, $search = null, $opts = [] )
     {
+        if ( !$value && $this->msgOnEmpty )
+            throw new Warning( $this->msgOnEmpty );
+
         $dto            = $this->dto;
         $sql            = SQL::delete( $this->dto );
         $search         = $search ?? $dto::primaryKey();
@@ -181,6 +230,9 @@ class DAO
                 : '=';
             $sql->where( $search, $operator, $value );
         }
+
+        if ( $this->msgOnFail )
+            $sql->onFail( $this->msgOnFail );
         
         return $sql;
     }

@@ -61,6 +61,9 @@ class SQLDelete extends SQLBuilder
             ->execute( $sql->sql, $sql->data )
             ->count();
 
+        if ( !$total && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
+
         return $total;
     }
 }
