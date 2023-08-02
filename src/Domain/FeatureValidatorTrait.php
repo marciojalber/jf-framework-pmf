@@ -8,7 +8,7 @@ use JF\Types\DateTime__Type;
 /**
  * Classe de funcionalidades do domínio.
  */
-trait ValidatorTrait
+trait FeatureValidatorTrait
 {
     /**
      * Verifica se a variável não está vazia.
@@ -17,6 +17,8 @@ trait ValidatorTrait
     {
         if ( !empty( $val ) )
             return $this;
+
+        $msg = $this->getReturnText( $msg );
 
         throw new Warning( $msg );
     }
@@ -29,6 +31,8 @@ trait ValidatorTrait
         if ( DateTime__Type::validateDate( $val ) )
             return $this;
 
+        $msg = $this->getReturnText( $msg );
+
         throw new Warning( $msg );
     }
 
@@ -39,6 +43,8 @@ trait ValidatorTrait
     {
         if ( $val < $comparator )
             return $this;
+
+        $msg = $this->getReturnText( $msg );
 
         throw new Warning( $msg );
     }
@@ -51,6 +57,8 @@ trait ValidatorTrait
         if ( $val <= $comparator )
             return $this;
 
+        $msg = $this->getReturnText( $msg );
+
         throw new Warning( $msg );
     }
 
@@ -61,6 +69,8 @@ trait ValidatorTrait
     {
         if ( $val > $comparator )
             return $this;
+
+        $msg = $this->getReturnText( $msg );
 
         throw new Warning( $msg );
     }
@@ -73,6 +83,8 @@ trait ValidatorTrait
         if ( $val >= $comparator )
             return $this;
 
+        $msg = $this->getReturnText( $msg );
+
         throw new Warning( $msg );
     }
 
@@ -83,6 +95,8 @@ trait ValidatorTrait
     {
         if ( in_array( $val, $values ) )
             return $this;
+
+        $msg = $this->getReturnText( $msg );
 
         throw new Warning( $msg );
     }
