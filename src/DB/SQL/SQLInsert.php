@@ -90,6 +90,9 @@ class SQLInsert extends SQLBuilder
         $dto    = $this->dto;
         $id     = $this->id();
 
+        if ( !$id && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
+
         if ( !$id )
             return null;
 

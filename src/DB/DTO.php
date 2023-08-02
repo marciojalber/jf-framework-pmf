@@ -3,6 +3,7 @@
 namespace JF\DB;
 
 use JF\DB\DB;
+use JF\Exceptions\InfoException as Info;
 use JF\Exceptions\ErrorException as Error;
 use JF\Types\DateTime__Type;
 
@@ -40,6 +41,17 @@ class DTO extends \StdClass
      * Status do registro.
      */
     protected $_status          = 'created';
+    
+    /**
+     * Mensagem de erro em caso de nenhum dados novo informado antes de salvar.
+     */
+    protected $msgOnUnchanged;
+    
+    
+    /**
+     * Mensagem de erro em caso de falha na execução da operação.
+     */
+    protected $msgOnFail;
     
     /**
      * Dados sensíveis do registro.
@@ -250,6 +262,24 @@ class DTO extends \StdClass
     }
 
     /**
+     * Se o valor passado estiver vazio, lança uma exceção de erro.
+     */
+    public function onUnchanged( $msg )
+    {
+        $this->msgOnUnchanged = $msg;
+        return $this;
+    }
+
+    /**
+     * Se o valor passado estiver vazio, lança uma exceção de erro.
+     */
+    public function onFail( $msg )
+    {
+        $this->msgOnFail = $msg;
+        return $this;
+    }
+
+    /**
      * Define um novo valor para uma propriedade do objeto.
      */
     public function set( $key, $value )
@@ -364,6 +394,9 @@ class DTO extends \StdClass
      */
     public function save()
     {
+        if ( !$this->changed() && $this->msgOnUnchanged )
+            throw new Info( $this->msgOnUnchanged );
+
         if ( !$this->changed() )
             return false;
 
@@ -377,6 +410,9 @@ class DTO extends \StdClass
         $count              = static::dao()
             ->update( $this->$key, $key, $values )
             ->count();
+
+        if ( !$count && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
 
         if ( $count )
             $this->_status  = 'saved';
@@ -393,6 +429,9 @@ class DTO extends \StdClass
         $count              = static::dao()
             ->delete( $this->$key, $key )
             ->count();
+
+        if ( !$count && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
 
         if ( $count )
             $this->_status  = 'deleted';

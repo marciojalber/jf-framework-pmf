@@ -3,6 +3,7 @@
 namespace JF\DB\SQL;
 
 use JF\DB\DB;
+use JF\Exceptions\ErrorException as Error;
 
 /**
  * Classe para construir consultas SELECT.
@@ -102,6 +103,9 @@ class SQLSelect extends SQLBuilder
             ->execute( $sql->sql, $sql->data, $dto::isView() )
             ->one( $dto::dbOptions( $opts ) );
 
+        if ( !$result && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
+
         return $result;
     }
 
@@ -119,6 +123,9 @@ class SQLSelect extends SQLBuilder
             ->indexBy( $pk )
             ->all( $dto::dbOptions( $opts ) );
 
+        if ( !$result && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
+
         return $result;
     }
 
@@ -135,6 +142,9 @@ class SQLSelect extends SQLBuilder
             ->execute( $sql->sql, $sql->data, $dto::isView() )
             ->one([ 'object' => true ])
             ->total;
+
+        if ( !$total && $this->msgOnFail )
+            throw new Error( $this->msgOnFail );
 
         return $total;
     }

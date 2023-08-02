@@ -3,6 +3,7 @@
 namespace JF\DB\SQL;
 
 use JF\DB\DB;
+use JF\Exceptions\ErrorException as Error;
 
 /**
  * Trait para executar a exclusão de registros.

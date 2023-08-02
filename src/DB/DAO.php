@@ -3,6 +3,7 @@
 namespace JF\DB;
 
 use JF\DB\SQL\SQL;
+use JF\Exceptions\ErrorException as Error;
 use JF\Exceptions\WarningException as Warning;
 
 /**
