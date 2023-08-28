@@ -3,7 +3,6 @@
 namespace JF;
 
 require_once( __DIR__ . '/Autoloader.php' );
-require_once( __DIR__ . '/FileSystem/Dir.php' );
 require_once( __DIR__ . '/Config.php' );
 
 use JF\Doc\DocParserFeature;

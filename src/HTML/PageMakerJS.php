@@ -13,7 +13,7 @@ trait PageMakerJS
      * Inclue um script marcando o tempo de modificação do arquivo,
      * para forçar atualização pelo navegador do cliente.
      */
-    public function minifyJS( $js_path, $use_route_path = false )
+    public function minifyJS( $js_path, $use_route_path = false, $type = null )
     {
         if ( ENV_DEV )
             return $this->js( $js_path, $use_route_path );
@@ -44,7 +44,7 @@ trait PageMakerJS
         $filetime                   = filemtime( $file_source );
         $this->depends[ $js_name ]  = $filetime;
 
-        return $this->mountJsScript( $use_route_path, $ui_target, $filetime );
+        return $this->mountJsScript( $use_route_path, $ui_target, $filetime, $type );
     }
 
     /**

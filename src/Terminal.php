@@ -2,20 +2,11 @@
 
 namespace JF;
 
-use JF\Autoloader;
-use JF\Cache;
+require_once( __DIR__ . '/Autoloader.php' );
+require_once( __DIR__ . '/Config.php' );
+
 use JF\Command;
-use JF\Config;
-use JF\Doc\DocParserFeature;
-use JF\Domain\Tester;
 use JF\Env;
-use JF\FileSystem\Dir;
-use JF\HTML\HTML_Responder;
-use JF\HTTP\Request;
-use JF\HTTP\Responder;
-use JF\HTTP\Router;
-use JF\Messager;
-use JF\Session;
 use JF\Utils;
 
 /**
@@ -29,8 +20,8 @@ final class Terminal
     public static function run( $args, $dirbase = null, $document_root = null )
     {
         self::defines( $dirbase, $document_root );
-        self::defineIpServer();
         self::configPHPEnv();
+        self::defineIpServer();
         self::defineProductPaths();
         Env::setEnv();
 
@@ -116,6 +107,20 @@ final class Terminal
     }
 
     /**
+     * Define o IP do servidor a partir do MAC Address.
+     */
+    private static function defineIpServer()
+    {
+        $mac    = Utils::getMac();
+        $server = Config::get( "macs.$mac" );
+        
+        if ( method_exists( 'App\\App', 'terminalDefineIpServer' ) )
+            $server = \App\App::terminalDefineIpServer( $server );
+
+        define( 'SERVER', $server );
+    }
+
+    /**
      * Define a pasta de produtos da aplicação.
      */
     private static function defineProductPaths()
@@ -133,19 +138,5 @@ final class Terminal
         define( 'DIR_STORAGE',      DIR_PRODUCTS . '/storage' );
 
         ini_set( 'upload_tmp_dir',  DIR_PRODUCTS . '/uploads' );
-    }
-
-    /**
-     * Define o IP do servidor a partir do MAC Address.
-     */
-    private static function defineIpServer()
-    {
-        $mac    = Utils::getMac();
-        $server = Config::get( "macs.$mac" );
-        
-        if ( method_exists( 'App\\App', 'terminalDefineIpServer' ) )
-            $server = \App\App::terminalDefineIpServer( $server );
-
-        define( 'SERVER', $server );
     }
 }
