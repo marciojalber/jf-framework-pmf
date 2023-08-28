@@ -3,6 +3,11 @@
 class PHPCompiler
 {
 	/**
+	 * Arquivo de destino do PHAR e classe do stub.
+	 */
+	protected $pharTarget;
+
+	/**
 	 * Arquivo PHAR.
 	 */
 	protected $phar;
@@ -20,12 +25,17 @@ class PHPCompiler
 	/**
 	 * Executa a compilação
 	 */
-	public static function init( $target )
+	public static function init()
 	{
-		file_exists( 'jf.phar' ) && unlink( 'jf.phar' );
+		$instance 				= new self();
+		$instance->pharTarget 	= $_SERVER[ 'QUERY_STRING' ] == 'jfc'
+			? ['jfc.phar', 'Terminal.php']
+			: ['jf.phar', 'App.php'];
+		$phar_filename 			= $instance->pharTarget[0];
 
-		$instance 		= new self();
-		$instance->phar = new \Phar( 'jf.phar', 0 );
+		file_exists( $phar_filename ) && unlink( $phar_filename );
+
+		$instance->phar 		= new \Phar( $phar_filename, 0 );
 		
 		$instance->phar->canCompress( 1 );
 		$instance->phar->compressFiles( \Phar::GZ );
@@ -51,7 +61,7 @@ class PHPCompiler
 
 		$this->phar->stopBuffering();
 
-		$def_stub = $this->phar->createDefaultStub( 'App.php' );
+		$def_stub = $this->phar->createDefaultStub( $this->pharTarget[1] );
 		$this->phar->setStub( $def_stub );
 
 		header( 'Content-Type: application/json' );
@@ -293,4 +303,4 @@ class PHPCompiler
 	}
 }
 
-PHPCompiler::init( 'jf.phar' )->compile();
+PHPCompiler::init()->compile();
