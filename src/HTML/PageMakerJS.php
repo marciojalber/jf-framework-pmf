@@ -51,7 +51,7 @@ trait PageMakerJS
      * Inclue um script marcando o tempo de modificação do arquivo,
      * para forçar atualização pelo navegador do cliente.
      */
-    public function js( $js_path, $use_route_path = false )
+    public function js( $js_path, $use_route_path = false, $type = null )
     {
         $real_path                  = $this->getRealPath( $js_path, $use_route_path );
         $file_source                = $use_route_path
@@ -78,7 +78,7 @@ trait PageMakerJS
         $filetime                   = filemtime( $file_source );
         $this->depends[ $js_name ]  = $filetime;
 
-        return $this->mountJsScript( $use_route_path, $ui_target, $filetime );
+        return $this->mountJsScript( $use_route_path, $ui_target, $filetime, $type );
     }
 
     /**
@@ -110,11 +110,13 @@ trait PageMakerJS
     /**
      * Monta o texto da tag script.
      */
-    private function mountJsScript( $use_route_path, $ui_target, $filetime )
+    private function mountJsScript( $use_route_path, $ui_target, $filetime, $type )
     {
         $filejs     = $this->ui() . $ui_target;
         $src        = 'src="' . $filejs . '?v=' . $filetime . '"';
-        $script     = "<script {$src}></script>";
+        $script     = $type
+            ? "<script type='$type' {$src}></script>"
+            : "<script {$src}></script>";
         
         return $script;
     }

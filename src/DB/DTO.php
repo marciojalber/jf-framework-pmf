@@ -280,6 +280,26 @@ class DTO extends \StdClass
     }
 
     /**
+     * Soma 1 ao valor da coluna.
+     */
+    public function add( $key, $value )
+    {
+        $this->set( $key, $this->$key + 1 );
+
+        return $this;
+    }
+
+    /**
+     * Subtrai 1 do valor da coluna.
+     */
+    public function sub( $key, $value )
+    {
+        $this->set( $key, $this->$key - 1 );
+
+        return $this;
+    }
+
+    /**
      * Define um novo valor para uma propriedade do objeto.
      */
     public function set( $key, $value )

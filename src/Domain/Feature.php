@@ -244,6 +244,9 @@ class Feature extends \StdClass
             $filename   = $item->getFileName();
             $ruleclass  = $rule_ns . '\\' . substr( $filename, 0, -4 );
 
+            if ( substr( $filename, -10 ) != '__Rule.php' )
+                continue;
+
             if ( !class_exists( $ruleclass ) )
                 throw new Error( "Regra de negócio {$ruleclass} não encontrada em {$classname}." );
 
