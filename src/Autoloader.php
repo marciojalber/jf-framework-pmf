@@ -27,8 +27,8 @@ final class Autoloader
      */
     private static function autoload( $class )
     {
-        $filename       = self::getClassFilename( $class );
-        $filename       = preg_replace( '@phar://.*?.phar@', __DIR__, $filename );
+        $filename   = self::getClassFilename( $class );
+        $filename   = preg_replace( '@phar://.*?.phar@', __DIR__, $filename );
 
         if ( file_exists( $filename ) )
         {

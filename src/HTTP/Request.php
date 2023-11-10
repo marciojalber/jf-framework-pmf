@@ -73,7 +73,7 @@ class Request
     public static function forceHttps()
     {
         $is_https   = !empty( $_SERVER[ 'HTTPS' ] ) && $_SERVER['HTTPS'] === 'on';
-        $host       = $_SERVER[ 'SERVER_NAME' ];
+        $host       = str_replace( '.prevnet', '', $_SERVER[ 'SERVER_NAME' ] );
         $uri        = $_SERVER[ 'REQUEST_URI' ];
         
         if ( $is_https )
@@ -188,6 +188,7 @@ class Request
     {
         if ( !$literal_link )
         {
+            $url        = str_replace( '.prevnet', '', $url );
             $url        = substr( $url, 0, 1 ) !== '/'
                 ? URL_BASE . '/' . $url
                 : URL_BASE . $url;

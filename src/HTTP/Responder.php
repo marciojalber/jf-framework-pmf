@@ -174,6 +174,7 @@ class Responder
             $args       = $api_request->args;
             $response   = [];
             $instance   = new $feature();
+
             $instance->before();
             $fn         = function( $matches ) {
                 return strtoupper( $matches[ 1 ] );

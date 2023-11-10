@@ -199,7 +199,7 @@ class Input
     /**
      * Método para obter os argumentos de uma requisição ou um argumento específico.
      */
-    public static function args( $index = null, $default = null, $filter  = null )
+    public static function args( $index = null, $default = null )
     {
         $args = Router::get( 'args' );
         
@@ -219,7 +219,7 @@ class Input
     /**
      * Método para obter os dados de uma requisição via GET.
      */
-    public static function get( $index = null, $default = null, $filter  = null )
+    public static function get( $index = null, $default = null )
     {
         return self::getData( 'get', $index, $default );
     }
@@ -227,7 +227,7 @@ class Input
     /**
      * Método para obter os dados de uma requisição via POST.
      */
-    public static function post( $index = null, $default = null, $filter  = null )
+    public static function post( $index = null, $default = null )
     {
         return self::getData( 'post', $index, $default );
     }
@@ -235,7 +235,7 @@ class Input
     /**
      * Método para obter os dados de uma requisição via REQUEST.
      */
-    public static function request( $index = null, $default = null, $filter  = null )
+    public static function request( $index = null, $default = null )
     {
         return self::getData( 'request', $index, $default );
     }
