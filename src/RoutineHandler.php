@@ -15,7 +15,7 @@ use JF\Messager;
 /**
  * Classe que cuida da execução de rotinas.
  */
-class RoutineHandler
+class RoutineHandler extends \StdClass
 {
     /**
      * Instância do esquema para registrar as etapas.
