@@ -9,7 +9,7 @@ use JF\Exceptions\WarningException as Warning;
 /**
  * Classe que cuida da execução de rotinas.
  */
-class Routine
+class Routine extends \StdClass
 {
     /**
      * Rotina ativa.
