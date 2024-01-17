@@ -211,7 +211,8 @@ class Routine
             DELETE FROM $table
             WHERE       `routine` = :routine
         ";
-        $data   = [ 'routine' => $this->routineID() ];
+        $name   = str_replace( '.', '\.', $this->routineID() );
+        $data   = [ 'routine' => $name ];
         $result = $this->registerDbInstance
             ->execute( $sql, $data )
             ->count();
