@@ -121,7 +121,7 @@ class RoutineHandler extends \StdClass
             if ( $execution )
                 $execution  = new \DateTime( $execution->date . ' ' . $execution->time );
 
-            $expired        = $routine->active() && !empty( $execution )
+            $expired        = $routine->active()
                 ? $routine->expired( $execution )
                 : false;
 
