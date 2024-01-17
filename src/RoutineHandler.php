@@ -6,7 +6,7 @@ use JF\Config;
 use JF\DB\DB;
 use JF\DB\DB_Backup;
 use JF\Doc\DocParser;
-use JF\Exceptions\ErrorException;
+use JF\Exceptions\ErrorException as Error;
 use JF\FileSystem\Dir;
 use JF\Log;
 use JF\System;
@@ -57,7 +57,7 @@ class RoutineHandler
             SELECT  `routine`,
                     `date`,
                     `time`
-            FROM    `$table` `a`
+            FROM    `$table1` `a`
             JOIN    (
                 SELECT      MAX( `id` ) `id`
                 FROM        `$table1`
@@ -110,7 +110,7 @@ class RoutineHandler
                     'routine_not_found',
                     $routine_class
                 );
-                throw new ErrorException( $msg );
+                throw new Error( $msg );
             }
 
             $routine        = new $routine_class;
