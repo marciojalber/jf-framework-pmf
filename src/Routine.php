@@ -187,7 +187,8 @@ class Routine extends \StdClass
      */
     public function process()
     {
-        $this->_clearForcer();
+        $this->startDbInstance();
+        $this->clearForcer();
         $this->registerStep( 'start', ['env' => ENV] );
         $this->execute();
         $this->registerStep( 'end', ['env' => ENV] );
@@ -204,7 +205,17 @@ class Routine extends \StdClass
     /**
      * Executa a rotina.
      */
-    protected function _clearForcer()
+    protected function startDbInstance( $step, $extra = [] )
+    {
+        $schema                     = Config::get( 'logs.executions.schema' );
+        $this->registerStart        = date( 'Y-m-d H:i:s' );
+        $this->registerDbInstance   = DB::instance( $schema );
+    }
+
+    /**
+     * Executa a rotina.
+     */
+    protected function clearForcer()
     {
         $table  = Config::get( 'logs.executions.force' );
         $sql    = "
@@ -222,15 +233,7 @@ class Routine extends \StdClass
      */
     protected function registerStep( $step, $extra = [] )
     {
-        $routine    = $this->routineID();
-
-        if ( empty( $this->registerDbInstance ) )
-        {
-            $schema                     = Config::get( 'logs.executions.schema' );
-            $this->registerStart        = date( 'Y-m-d H:i:s' );
-            $this->registerDbInstance   = DB::instance( $schema );
-        }
-        
+        $routine        = $this->routineID();
         $table          = Config::get( 'logs.executions.table' );
         $now            = new \DateTime();
         $data           = [
