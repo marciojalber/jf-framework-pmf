@@ -187,8 +187,8 @@ class Routine extends \StdClass
      */
     public function process()
     {
-        $this->registerStep( 'start', ['env' => ENV] );
         $this->_clearForcer();
+        $this->registerStep( 'start', ['env' => ENV] );
         $this->execute();
         $this->registerStep( 'end', ['env' => ENV] );
     }
