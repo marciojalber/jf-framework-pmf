@@ -212,7 +212,6 @@ class Routine
             WHERE       `routine` = :routine
         ";
         $data   = [ 'routine' => $this->routineID() ];
-        $this->registerDbInstance
         $result = $this->registerDbInstance
             ->execute( $sql, $data )
             ->count();
