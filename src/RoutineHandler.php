@@ -51,7 +51,8 @@ class RoutineHandler
     private function getExecution()
     {
         $schema             = Config::get( 'logs.executions.schema' );
-        $table              = Config::get( 'logs.executions.table' );
+        $table1             = Config::get( 'logs.executions.table' );
+        $table2             = Config::get( 'logs.executions.force' );
         $sql                = "
             SELECT  `routine`,
                     `date`,
@@ -59,7 +60,11 @@ class RoutineHandler
             FROM    `$table` `a`
             JOIN    (
                 SELECT      MAX( `id` ) `id`
-                FROM        `$table`
+                FROM        `$table1`
+                WHERE       `routine` NOT IN (
+                    SELECT  `routine`
+                    FROM    `$table2`
+                )
                 GROUP BY    `routine`
             ) `b`
             USING( `id` )

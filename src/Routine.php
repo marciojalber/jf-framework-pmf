@@ -189,6 +189,7 @@ class Routine
     {
         $this->registerStep( 'start', ['env' => ENV] );
         $this->execute();
+        $this->_clearForcer();
         $this->registerStep( 'end', ['env' => ENV] );
     }
 
@@ -203,14 +204,26 @@ class Routine
     /**
      * Executa a rotina.
      */
+    protected function _clearForcer()
+    {
+        $table  = Config::get( 'logs.executions.force' );
+        $sql    = "
+            DELETE FROM $table
+            WHERE       `routine` = :routine
+        ";
+        $data   = [ 'routine' => $this->routineID() ];
+        $this->registerDbInstance
+        $result = $this->registerDbInstance
+            ->execute( $sql, $data )
+            ->count();
+    }
+
+    /**
+     * Executa a rotina.
+     */
     protected function registerStep( $step, $extra = [] )
     {
-        $namespaces = Config::get( 'namespaces' );
-        $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
-
-        $table      = Config::get( 'logs.executions.table' );
-        $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
-        $routine    = str_replace( '\\', '.', $routine );
+        $routine    = $this->routineID();
 
         if ( empty( $this->registerDbInstance ) )
         {
@@ -235,6 +248,23 @@ class Routine
                 :routine, :step, :date, :time, :duration, :extra
             )
         ";
-        $result         = $this->registerDbInstance->execute( $sql, $data )->count();
+        $result         = $this->registerDbInstance
+            ->execute( $sql, $data )
+            ->count();
+    }
+
+    /**
+     * Retorna o nome da rotina para logs.
+     */
+    protected function routineID()
+    {
+        $namespaces = Config::get( 'namespaces' );
+        $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
+
+        $table      = Config::get( 'logs.executions.table' );
+        $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
+        $routine    = str_replace( '\\', '.', $routine );
+
+        return $routine;
     }
 }
