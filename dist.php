@@ -30,7 +30,7 @@ class PHPCompiler
 		$instance 				= new self();
 		$instance->pharTarget 	= $_SERVER[ 'QUERY_STRING' ] == 'jfc'
 			? ['jfc.phar', 'Terminal.php']
-			: ['jf.phar', 'App.php'];
+			: ['jf-php.phar', 'App.php'];
 		$phar_filename 			= $instance->pharTarget[0];
 
 		file_exists( $phar_filename ) && unlink( $phar_filename );
