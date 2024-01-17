@@ -208,7 +208,7 @@ class Routine extends \StdClass
     {
         $table  = Config::get( 'logs.executions.force' );
         $sql    = "
-            DELETE FROM $table
+            DELETE FROM `$table`
             WHERE       `routine` = :routine
         ";
         $data   = [ 'routine' => $this->routineID() ];
@@ -231,6 +231,7 @@ class Routine extends \StdClass
             $this->registerDbInstance   = DB::instance( $schema );
         }
         
+        $table          = Config::get( 'logs.executions.table' );
         $now            = new \DateTime();
         $data           = [
             'routine'   => $routine,
@@ -260,7 +261,6 @@ class Routine extends \StdClass
         $namespaces = Config::get( 'namespaces' );
         $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
 
-        $table      = Config::get( 'logs.executions.table' );
         $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
         $routine    = str_replace( '\\', '.', $routine );
 
