@@ -205,7 +205,7 @@ class Routine extends \StdClass
     /**
      * Executa a rotina.
      */
-    protected function startDbInstance( $step, $extra = [] )
+    protected function startDbInstance()
     {
         $schema                     = Config::get( 'logs.executions.schema' );
         $this->registerStart        = date( 'Y-m-d H:i:s' );
