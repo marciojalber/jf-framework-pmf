@@ -165,9 +165,6 @@ final class PageMaker extends \StdClass
                 : $this->data;
         }
 
-        foreach ( $this->permissions as &$item )
-            $item           = preg_split( '@ *, *@', $item );
-
         $this->config       = json_decode( json_encode( $this->config ) );
         $this->permissions  = json_decode( json_encode( $this->permissions ) );
         $this->plugins      = json_decode( json_encode( $this->plugins ) );

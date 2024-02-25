@@ -117,7 +117,7 @@ class Input
         $errorCode                      = $files->error[ $counter ];
         
         // Valida um arquivo
-        list( $width, $height ) = getimagesize( $files->tmp_name[ $counter ] );
+        list( $width, $height )         = getimagesize( $files->tmp_name[ $counter ] );
         
         if ( !$width && !$height )
         {
