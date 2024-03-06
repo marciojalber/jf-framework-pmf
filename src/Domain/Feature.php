@@ -347,10 +347,10 @@ class Feature extends \StdClass
     {
         $microtime          = microtime(1);
         $tick               = $microtime - $this->_microtime;
+        $this->_microtime   = $microtime;
         $this->_ticks[]     = $name
             ? [ $tick, $name ]
             : $tick;
-        $this->_microtime   = $microtime;
     }
 
     /**
