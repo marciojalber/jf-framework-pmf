@@ -44,6 +44,8 @@ class Feature extends \StdClass
      */
     public function __construct()
     {
+        $this->_microtime   = $_SERVER[ 'REQUEST_TIME_FLOAT' ];
+        $this->_ticks       = [];
         $this->setSteps();
     }
 
@@ -336,5 +338,23 @@ class Feature extends \StdClass
     public function msg()
     {
         return $this->msg;
+    }
+
+    /**
+     * Marca o tempo de execução do momento.
+     */
+    public function tick()
+    {
+        $microtime          = microtime(1);
+        $this->_ticks[]     = $microtime - $this->_microtime;
+        $this->_microtime   = $microtime;
+    }
+
+    /**
+     * Retorna os tempos marcados.
+     */
+    public function ticks()
+    {
+        return $this->_ticks;
     }
 }
