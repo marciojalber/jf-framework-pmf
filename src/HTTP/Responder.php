@@ -186,16 +186,16 @@ class Responder
                 $instance->set( $arg_name, $arg_value );
             }
 
-            $response   = $instance->execute();
+            $response       = $instance->execute();
+            $response_type  = Router::get( 'response_type' );
+            $after          = $instance->after();
 
-            if ( Router::get( 'response_type' ) != 'pdf' )
+            if ( $response_type != 'pdf' )
             {
-                $response   = $response && Router::get( 'response_type' )
+                $response   = $response
                     ? (array) $response
                     : [];
             }
-
-            $response_type      = Router::get( 'response_type' );
 
             if ( in_array( $response_type, ['json', 'php', 'txt'] ) )
             {
@@ -205,9 +205,7 @@ class Responder
                 ], $response );
             }
 
-            $after          = $instance->after();
-
-            if ( $response && $after )
+            if ( $response && $after && $response_type != 'pdf' )
             {
                 $response   = array_merge( $response, $after );
             }
