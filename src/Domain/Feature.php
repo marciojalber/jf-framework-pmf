@@ -343,10 +343,13 @@ class Feature extends \StdClass
     /**
      * Marca o tempo de execução do momento.
      */
-    public function tick()
+    public function tick( $name = null )
     {
         $microtime          = microtime(1);
-        $this->_ticks[]     = $microtime - $this->_microtime;
+        $tick               = $microtime - $this->_microtime;
+        $this->_ticks[]     = $name
+            ? [ $tick, $name ]
+            : $tick;
         $this->_microtime   = $microtime;
     }
 
