@@ -206,9 +206,7 @@ class Responder
             }
 
             if ( $response && $after && $response_type != 'pdf' )
-            {
                 $response   = array_merge( $response, $after );
-            }
 
             self::sendSpecificResponse( $response, $instance );
             exit();

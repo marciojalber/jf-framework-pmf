@@ -31,10 +31,8 @@ trait FeatureTrait
         $instance = new static();
 
         if ( !empty( static::$entityClass ) )
-        {
             $instance->_entity = new static::$entityClass();
-        }
-
+        
         return $instance;
     }
 
@@ -73,10 +71,8 @@ trait FeatureTrait
         $properties         = $class_reflection->getProperties( $is_public );
 
         foreach ( $properties as &$prop )
-        {
             $prop = $prop->getName();
-        }
-
+     
         return $properties;
     }
 
@@ -86,33 +82,23 @@ trait FeatureTrait
     public function execute()
     {
         if ( $this->requirePermission && !User::get() )
-        {
-            $msg = 'Usuário identificado.';
-            throw new ErrorException( $msg );
-        }
+            throw new ErrorException( 'Usuário identificado.' );
 
         if ( $this->requirePermission && !User::hasPermission( get_called_class() ) )
-        {
-            $msg = 'Usuário sem permissão para executar a operação.';
-            throw new ErrorException( $msg );
-        }
+            throw new ErrorException( 'Usuário sem permissão para executar a operação.' );
 
         $validation = !$this->_entity
             ? true
             : $this->_entity->isValid();
 
         if ( $validation !== true )
-        {
             throw new WarningException( $validation );
-        }
 
         $response   = $this->execution();
         $msg_error  = $this->msgError();
         
         if ( $msg_error && !$this->result )
-        {
             throw new ErrorException( $msg_error );
-        }
         
         return !method_exists( $this, 'response' )
             ? $response
@@ -145,9 +131,7 @@ trait FeatureTrait
         $msg = $this->apply( $rule, $input );
 
         if ( $msg !== true )
-        {
             throw new InfoException( $msg );
-        }
     }
 
     /**
@@ -159,9 +143,7 @@ trait FeatureTrait
         $msg = $this->apply( $rule, $input );
 
         if ( $msg !== true )
-        {
             throw new WarningException( $msg );
-        }
     }
 
     /**
@@ -173,9 +155,7 @@ trait FeatureTrait
         $msg = $this->apply( $rule, $input );
 
         if ( $msg !== true )
-        {
             throw new ErrorException( $msg );
-        }
     }
 
     /**

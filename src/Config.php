@@ -42,17 +42,13 @@ final class Config
         $reload         = isset( $opts[ 'reload' ] ) && $opts[ 'reload' ];
         
         if ( !$context_loaded || $reload )
-        {
             self::load( $context );
-        }
 
         // Tenta retornar a configuração solicitada
         $config         = self::$config[ $context ];
         
         if ( is_null( $config ) )
-        {
             return $default;
-        }
 
         foreach ( $path as $key )
         {

@@ -61,19 +61,13 @@ class Input
     {
         // Testa se existe o índice de arquivo solicitado
         if ( empty( $_FILES[ $name ] ) )
-        {
             return null;
-        }
 
         if ( !$dir )
-        {
             $dir = DIR_STORAGE;
-        }
 
         if ( !file_exists( $dir ) )
-        {
             Dir::makeDir( $dir );
-        }
 
         if ( !is_writable( $dir ) )
         {
@@ -100,9 +94,7 @@ class Input
 
         // Itera com os arquivos
         for ( $counter = 0; $counter < $files_count; $counter++ )
-        {
-            $files_ajusted[]        = self::formatFileItem( $files, $counter, $dir );
-        }
+            $files_ajusted[] = self::formatFileItem( $files, $counter, $dir );
 
         // Retorna os dados dos arquivos
         return $files_ajusted;
@@ -120,9 +112,7 @@ class Input
         list( $width, $height )         = getimagesize( $files->tmp_name[ $counter ] );
         
         if ( !$width && !$height )
-        {
             $errorCode = 'INVALID_IMAGE';
-        }
         
         $errorCode                      = $files->error[ $counter ];
         $files->error_message[ $counter ]   = self::$uploadErrors[ $errorCode ];
@@ -204,14 +194,10 @@ class Input
         $args = Router::get( 'args' );
         
         if ( !$index )
-        {
             return $args;
-        }
 
         if ( !isset( $args[ $index ] ) )
-        {
             return $default;
-        }
 
         return $args[ $index ];
     }
@@ -253,10 +239,17 @@ class Input
         {
             case 'post':
                 $var        = $_POST;
-                $post_json  = json_decode( file_get_contents( 'php://input' ), true );
+                $post_json  = json_decode( file_get_contents( 'php://input' ), 1 );
         
                 if ( $post_json )
                     $var    = array_merge( $var, $post_json );
+
+                if ( isset( $var[ '_serial' ] ) )
+                {
+                    $serial = $var[ '_serial' ];
+                    unset( $var[ '_serial' ] );
+                    $var    = array_merge( $var, json_decode( $serial, 1 ) );
+                }
         
                 break;
             
@@ -270,14 +263,10 @@ class Input
         }
         
         if ( !$index )
-        {
             return $var;
-        }
         
         if ( !isset( $var[ $index ] ) )
-        {
             return $default;
-        }
         
         $response = $var[ $index ];
         

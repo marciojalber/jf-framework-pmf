@@ -21,11 +21,12 @@ final class ErrorHandler
             return;
 
         $registered         = true;
-
-        register_shutdown_function( [ __CLASS__, 'shutdown' ] );
-        set_error_handler([ __CLASS__, 'error' ] );
-        set_exception_handler([ __CLASS__, 'exception' ] );
+        
+        register_shutdown_function( [ __CLASS__, 'shutdown' ]);
+        set_error_handler([ __CLASS__, 'error' ]);
+        set_exception_handler([ __CLASS__, 'exception' ]);
     }
+
     /**
      * Disparado quando ocorrer erros fatais.
      */
@@ -34,7 +35,14 @@ final class ErrorHandler
         if ( !$error = error_get_last() )
             return;
         
+        if ( JF_TESTING )
+        {
+            print_r( $error );
+            return;
+        }
+
         $error[ 'type' ] = 'FATAL';
+        
         Log::register( $error, 'error' );
         Error_Responder::send( $error );
     }
@@ -52,6 +60,12 @@ final class ErrorHandler
             'type'      => 'ERROR',
         );
         
+        if ( JF_TESTING )
+        {
+            print_r( $error );
+            return;
+        }
+        
         Log::register( $error, 'error' );
 
         if ( defined( 'ENV_DEV' ) && ENV_DEV )
@@ -67,11 +81,17 @@ final class ErrorHandler
         $error          = array(
             'code'      => $codeException,
             'message'   => preg_replace( '/\nStack trace:.*/s', '', $exception->getMessage() ),
-            'stack'     => $exception->getTraceAsString(),
             'file'      => $exception->getFile(),
             'line'      => $exception->getLine(),
             'type'      => 'EXCEPTION',
+            'stack'     => $exception->getTraceAsString(),
         );
+        
+        if ( JF_TESTING )
+        {
+            print_r( $error );
+            return;
+        }
         
         Log::register( $error, 'error' );
         Error_Responder::send( $error );
