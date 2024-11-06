@@ -112,9 +112,8 @@ class TestsRunner extends \StdClass
                 continue;
             
             $classname  = $this->getClassName( $path );
-            $test       = new $classname();
             
-            $refclass   = new \ReflectionClass( $test );
+            $refclass   = new \ReflectionClass( $classname );
             $methods    = $refclass->getMethods();
 
             foreach ( $methods as $i => $method )
@@ -127,6 +126,7 @@ class TestsRunner extends \StdClass
                 if ( substr( $name, 0, 4 ) != 'test' )
                     continue;
 
+                $test               = new $classname();
                 $result             = $test->executeTest( $name );
                 $tot_asserts        = $test->totalAsserts();
                 $was_assertion      = $test->wasAssertion();
@@ -217,7 +217,7 @@ class TestsRunner extends \StdClass
         echo PHP_EOL . PHP_EOL;
         echo `echo \e[42mTESTES BEM-SUCEDIDOS : {$this->assertions}\e[0m`;
 
-        if ( $this->assertions )
+        if ( $this->assertions && 0 )
         {
             foreach ( $this->tests as $id => $test )
             {
