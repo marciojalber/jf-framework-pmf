@@ -107,16 +107,12 @@ class Controller extends \StdClass
 
         // Se o contexto da configuração não existe
         if ( !array_key_exists( $context, $this->data ) )
-        {
             $this->data[ $context ] = (object) [];
-        }
 
         // Se não informou pelo menos 1 chave de informação para,
         // o tipo de dado da configuração deve ser um array ou objeto
         if ( !$path )
-        {
             return $this->data[ $context ] = $value;
-        }
 
         // Define a variável apontada
         $data     = $this->data[ $context ];
@@ -124,14 +120,10 @@ class Controller extends \StdClass
         foreach ( $path as $key )
         {
             if ( $last_key )
-            {
                 $data = $data->$last_key;
-            }
             
             if ( !property_exists( $key, $data ) )
-            {
                 $data->$key = (object) [];
-            }
             
             $last_key = $key;
         }

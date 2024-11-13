@@ -261,8 +261,9 @@ class Routine extends \StdClass
      */
     protected function routineID()
     {
-        $namespaces = Config::get( 'namespaces' );
-        $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
+        // $namespaces = Config::get( 'namespaces' );
+        // $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
+        $namespace  = 'App\\Routines';
 
         $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
         $routine    = str_replace( '\\', '.', $routine );

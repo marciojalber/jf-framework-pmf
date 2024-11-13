@@ -188,26 +188,29 @@ class Responder
 
             $response       = $instance->execute();
             $response_type  = Router::get( 'response_type' );
-            $after          = $instance->after();
 
-            if ( $response_type != 'pdf' )
+            $after          = (array) $instance->after();
+            $attachments    = ['download', 'pdf'];
+            $direct_data    = array_merge( $attachments, ['event', 'csv', 'xls'] );
+            // csv download event json pdf php txt xls
+
+            if ( !in_array( $response_type, $attachments ) )
             {
                 $response   = $response
                     ? (array) $response
                     : [];
             }
-
-            if ( in_array( $response_type, ['json', 'php', 'txt'] ) )
+            
+            if ( !in_array( $response_type, $direct_data ) )
             {
-                $response   = array_merge( [
-                    'type'  => 'success',
-                    'text'  => $instance->msg(),
-                ], $response );
-            }
-
-            if ( $response && $after && $response_type != 'pdf' )
-            {
-                $response   = array_merge( $response, $after );
+                $response   = array_merge(
+                    $response,
+                    $after,
+                    [
+                        'type'  => 'success',
+                        'text'  => $instance->msg(),
+                    ]
+                );
             }
 
             self::sendSpecificResponse( $response, $instance );

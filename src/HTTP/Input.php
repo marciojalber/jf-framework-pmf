@@ -61,19 +61,13 @@ class Input
     {
         // Testa se existe o índice de arquivo solicitado
         if ( empty( $_FILES[ $name ] ) )
-        {
             return null;
-        }
 
         if ( !$dir )
-        {
             $dir = DIR_STORAGE;
-        }
 
         if ( !file_exists( $dir ) )
-        {
             Dir::makeDir( $dir );
-        }
 
         if ( !is_writable( $dir ) )
         {
@@ -100,9 +94,7 @@ class Input
 
         // Itera com os arquivos
         for ( $counter = 0; $counter < $files_count; $counter++ )
-        {
             $files_ajusted[]        = self::formatFileItem( $files, $counter, $dir );
-        }
 
         // Retorna os dados dos arquivos
         return $files_ajusted;
@@ -117,12 +109,10 @@ class Input
         $errorCode                      = $files->error[ $counter ];
         
         // Valida um arquivo
-        list( $width, $height )         = getimagesize( $files->tmp_name[ $counter ] );
+        $is_image                       = !!exif_imagetype( $files->tmp_name[ $counter ] );
         
-        if ( !$width && !$height )
-        {
+        if ( $is_image )
             $errorCode = 'INVALID_IMAGE';
-        }
         
         $errorCode                      = $files->error[ $counter ];
         $files->error_message[ $counter ]   = self::$uploadErrors[ $errorCode ];
@@ -254,10 +244,17 @@ class Input
             case 'post':
                 $var        = $_POST;
                 $post_json  = json_decode( file_get_contents( 'php://input' ), true );
-        
+
                 if ( $post_json )
                     $var    = array_merge( $var, $post_json );
-        
+                
+                if ( isset( $var[ '_serial' ] ) )
+                {
+                    $serial = $var[ '_serial' ];
+                    unset( $var[ '_serial' ] );
+                    $var    = array_merge( $var, json_decode( $serial, 1 ) );
+                }
+
                 break;
             
             case 'get':
@@ -269,20 +266,18 @@ class Input
                 break;
         }
         
-        if ( !$index )
-        {
-            return $var;
-        }
-        
-        if ( !isset( $var[ $index ] ) )
-        {
+        if ( $index && !isset( $var[ $index ] ) )
             return $default;
+        
+        if ( $index && isset( $var[ $index ] ) )
+        {
+            $response = $var[ $index ];
+
+            return $filter
+                ? filter_var( $response, $filter )
+                : $response;
         }
-        
-        $response = $var[ $index ];
-        
-        return $filter
-            ? filter_var( $response, $filter )
-            : $response;
+
+        return $var;
     }
 }

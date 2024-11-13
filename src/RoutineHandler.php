@@ -37,8 +37,9 @@ class RoutineHandler extends \StdClass
         $this->now          = new \DateTime();
         $this->onlyExpired  = $only_expired;
 
-        $namespaces         = Config::get( 'namespaces' );
-        $this->namespace    = array_search( 'App/Routines', (array) $namespaces );
+        // $namespaces         = Config::get( 'namespaces' );
+        // $this->namespace    = array_search( 'App/Routines', (array) $namespaces );
+        $this->namespace    = 'App\\Routines';
 
         $this->explore( DIR_ROUTINES );
 
