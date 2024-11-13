@@ -287,9 +287,9 @@ class Routine extends \StdClass
     {
         // $namespaces = Config::get( 'namespaces' );
         // $namespace  = array_search( 'App/Routines', (array) $namespaces ) ?? 'App\\Routines';
-        $namespace  = 'App\\Routines';
+        // $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
 
-        $routine    = preg_replace( "@^{$namespace}\\\(.*?)__Routine$@", '$1', static::CLASS );
+        $routine    = preg_replace( "@^App\\\Routines\\\(.*?)__Routine$@", '$1', static::CLASS );
         $routine    = str_replace( '\\', '.', $routine );
 
         return $routine;
