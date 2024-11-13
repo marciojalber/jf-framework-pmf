@@ -23,9 +23,17 @@ class API
         $feature    = preg_replace_callback( '@(\\\.|_.)@', function( $matches ) {
             return strtoupper( $matches[ 1 ] );
         }, $feature );
-        $feature    = "Features\\{$feature}\Feature";
+        $feature1   = "App\\Domain\\Features\\{$feature}\Feature";
+        $feature2   = "Features\\{$feature}\Feature";
+        $feature    = null;
 
-        if ( !class_exists( $feature ) )
+        if ( class_exists( $feature1 )  )
+            $feature = $feature1;
+        
+        if ( class_exists( $feature2 )  )
+            $feature = $feature2;
+        
+        if ( !$feature )
             return;
         
         if ( !is_subclass_of( $feature, 'JF\\Domain\\Feature') )
