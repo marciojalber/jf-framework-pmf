@@ -30,7 +30,7 @@ class Router
     /**
      * Captura e define as URLs base e a rota.
      */
-    public static function basicDefines()
+    public static function basicDefines( $escape_redirect = false )
     {
         if ( defined( 'URL_BASE' ) )
             return;
@@ -54,7 +54,7 @@ class Router
         define( 'URL_PAGES',    URL_UI . '/pages' );
         define( 'ROUTE',        urldecode( $url_route ) );
 
-        if ( ROUTE )
+        if ( ROUTE || $escape_redirect )
             return;
 
         $default_route  = method_exists( '\App\App', 'defaultRoute' )

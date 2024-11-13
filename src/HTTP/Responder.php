@@ -203,15 +203,14 @@ class Responder
             
             if ( !in_array( $response_type, $direct_data ) )
             {
-                $response   = array_merge(
-                    $response,
-                    $after,
-                    [
-                        'type'  => 'success',
-                        'text'  => $instance->msg(),
-                    ]
-                );
+                $response   = array_merge( [
+                    'type'  => 'success',
+                    'text'  => $instance->msg(),
+                ], $response );
             }
+
+            if ( $response && $after && $response_type != 'pdf' )
+                $response   = array_merge( $response, $after );
 
             self::sendSpecificResponse( $response, $instance );
             exit();

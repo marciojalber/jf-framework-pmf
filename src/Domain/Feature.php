@@ -54,7 +54,8 @@ class Feature extends \StdClass
      */
     public function __destruct()
     {
-        $this->registerRequest();
+        if ( !JF_TESTING )
+            $this->registerRequest();
     }
 
     /**

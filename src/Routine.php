@@ -96,9 +96,33 @@ class Routine extends \StdClass
     }
 
     /**
-     * Executa a rotina.
+     * Indentifica os horários para disparar a execução da rotina.
      */
-    protected function parseRange( $arg, $min_num, $max_num, $interval )
+    public static function triggerTimes()
+    {
+        $inst       = new static();
+        $range_hr   = self::parseRange( $inst->hr, 0, 23, 'horas' );
+        $range_min  = self::parseRange( $inst->min, 0, 59, 'minutos' );
+        $times      = [];
+
+        foreach ( $range_hr as $hr )
+        {
+            $hr     = substr( '0' . strval( $hr ), -2 );
+            
+            foreach ( $range_min as $min )
+            {
+                $min    = substr( '0' . strval( $min ), -2 );
+                $times[] = "$hr:$min";
+            }
+        }
+
+        return $times;
+    }
+
+    /**
+     * Identifica os números do intervalo informado para cada dimensão do tempo.
+     */
+    protected static function parseRange( $arg, $min_num, $max_num, $interval )
     {
         $range  = [];
 
@@ -132,14 +156,14 @@ class Routine extends \StdClass
             if ( !is_numeric( $numbers[0] ) )
                 throw new Warning( "O número do início do intervalo $item informado para $interval não é um número válido." );
 
+            if ( !is_numeric( $numbers[1] ) )
+                throw new Warning( "O número do fim do intervalo $item informado para $interval não é um número válido." );
+
             if ( $numbers[0] < $min_num )
                 throw new Warning( "O número do início do intervalo $item informado para $interval é menor que $min_num." );
 
             if ( $numbers[0] > $max_num )
                 throw new Warning( "O número do início do intervalo $item informado para $interval é maior que $max_num." );
-
-            if ( !is_numeric( $numbers[1] ) )
-                throw new Warning( "O número do fim do intervalo $item informado para $interval não é um número válido." );
 
             if ( $numbers[1] < $min_num )
                 throw new Warning( "O número do fim do intervalo $item informado para $interval é menor que $min_num." );

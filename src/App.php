@@ -12,6 +12,7 @@ use JF\HTML\HTML_Responder;
 use JF\HTTP\Request;
 use JF\HTTP\Responder;
 use JF\HTTP\Router;
+use JF\Tests\TestsRunner;
 
 /**
  * Classe principal do framework
@@ -19,12 +20,42 @@ use JF\HTTP\Router;
 final class App
 {
     /**
+     * Indica se o App está rodando a aplicação.
+     */
+    private static $running = false;
+
+    /**
+     * Inicia a aplicação.
+     */
+    public static function executeTests( $dirbase = null )
+    {
+        if ( self::$running )
+            return;
+        
+        self::$running = true;
+
+        self::setInitialHeaders();
+        self::defines( $dirbase, 1 );
+        self::configPHPEnv( 1 );
+        self::defineProductPaths();
+        Env::setEnv();
+        Router::basicDefines( 1 );
+
+        TestsRunner::run();
+    }
+
+    /**
      * Inicia a aplicação.
      */
     public static function run( $dirbase = null )
     {
+        if ( self::$running )
+            return;
+
+        self::$running = true;
+
         self::setInitialHeaders();
-        self::defines( $dirbase );
+        self::defines( $dirbase, 0 );
         self::configPHPEnv();
         self::defineProductPaths();
         Env::setEnv();
@@ -58,8 +89,10 @@ final class App
     /**
      * Define as constantes.
      */
-    private static function defines( $dirbase )
+    private static function defines( $dirbase, $is_testing )
     {
+        define( 'JF_TESTING', $is_testing );
+
         // Sistema operacional
         define( 'WIN',              substr( PHP_OS, 0, 3 ) == 'WIN' );
 
@@ -107,13 +140,13 @@ final class App
 
         define( 'BASE_APP', substr( DIR_BASE, $len_rootpath ) );
         define( 'SERVER',       $server );
-        define( 'REQUEST_URI',  $_SERVER[ 'REQUEST_URI' ] );
+        define( 'REQUEST_URI',  $_SERVER[ 'REQUEST_URI' ] ?? '' );
     }
-
+    
     /**
      * Prepara o ambiente PHP.
      */
-    private static function configPHPEnv()
+    private static function configPHPEnv( $tests_env = false )
     {
         // Configurações iniciais do PHP
         ini_set( 'display_errors',          0 );
@@ -179,9 +212,7 @@ final class App
         $log_file       = $log_path . '/queue-processes.log';
 
         if ( !file_exists( $log_path ) )
-        {
             Dir::makeDir( $log_path );
-        }
 
         if ( !file_exists( $log_file ) )
         {
@@ -192,9 +223,7 @@ final class App
         $expired_cach  = filemtime( $log_file ) + MIN > time();
 
         if ( !$expired_cach )
-        {
             return;
-        }
 
         file_put_contents( $log_file, date( 'Y-m-d H:i:s' ) );
         
@@ -220,9 +249,7 @@ final class App
 
         // Se o arquivo não existe, grava novo arquivo
         if ( !file_exists( $filename ) )
-        {
             return file_put_contents( $filename, $now . N . $line  );
-        }
 
         // Captura dados para gravar dados no arquivo
         $file       = new \SplFileObject( $filename, 'a+' );
@@ -231,17 +258,14 @@ final class App
         
         // Se arquivo expirou, grava novo arquivo
         if ( $last > $interval )
-        {
             return file_put_contents( $filename, $now . N . $line );
-        }
 
         // Se a requisição não consta na lista das últimas requisições,
         // grava a requisição para prevenir o ataque DDoS
         $requests   = explode( N, $file->fread( filesize( $filename ) ) );
+
         if ( !in_array( $line, $requests ) )
-        {
             return $file->fwrite( N . $line );
-        }
 
         // A requisição atual consta na lista e trata-se de ataque DDoS
         Request::redirect( '/app/views/errors/403.html' );

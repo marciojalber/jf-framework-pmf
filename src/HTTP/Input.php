@@ -194,14 +194,10 @@ class Input
         $args = Router::get( 'args' );
         
         if ( !$index )
-        {
             return $args;
-        }
 
         if ( !isset( $args[ $index ] ) )
-        {
             return $default;
-        }
 
         return $args[ $index ];
     }
@@ -243,11 +239,11 @@ class Input
         {
             case 'post':
                 $var        = $_POST;
-                $post_json  = json_decode( file_get_contents( 'php://input' ), true );
-
+                $post_json  = json_decode( file_get_contents( 'php://input' ), 1 );
+        
                 if ( $post_json )
                     $var    = array_merge( $var, $post_json );
-                
+
                 if ( isset( $var[ '_serial' ] ) )
                 {
                     $serial = $var[ '_serial' ];
@@ -266,18 +262,16 @@ class Input
                 break;
         }
         
-        if ( $index && !isset( $var[ $index ] ) )
+        if ( !$index )
+            return $var;
+        
+        if ( !isset( $var[ $index ] ) )
             return $default;
         
-        if ( $index && isset( $var[ $index ] ) )
-        {
-            $response = $var[ $index ];
-
-            return $filter
-                ? filter_var( $response, $filter )
-                : $response;
-        }
-
-        return $var;
+        $response = $var[ $index ];
+        
+        return $filter
+            ? filter_var( $response, $filter )
+            : $response;
     }
 }
