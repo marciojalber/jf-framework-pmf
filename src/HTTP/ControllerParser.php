@@ -67,9 +67,8 @@ class ControllerParser
             }
         }
 
-        $controller1        = "App\\Domain\\Features\\{$controller}\\Controller";
-        $controller2        = "Features\\{$controller}\\Controller";
-        $controller3        = "Controllers\\{$controller}__Controller";
+        $controller1        = "App\\Services\\{$controller}\\Controller";
+        $controller2        = "Controllers\\{$controller}__Controller";
         
         if ( file_exists( Autoloader::getClassFilename( $controller1 ) ) )
         {
@@ -78,19 +77,7 @@ class ControllerParser
         }
         
         if ( file_exists( Autoloader::getClassFilename( $controller2 ) ) )
-        {
             self::$controller   = $controller2;
-            return;
-        }
-        
-        if ( file_exists( Autoloader::getClassFilename( $controller3 ) ) )
-            self::$controller   = $controller3;
-        
-        /*
-        self::$controller   = file_exists( Autoloader::getClassFilename( $controller1 ) )
-            ? $controller1
-            : $controller2;
-        */
     }
 
     /**

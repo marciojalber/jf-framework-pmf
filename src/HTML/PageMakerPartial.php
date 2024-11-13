@@ -14,7 +14,7 @@ trait PageMakerPartial
     /**
      * Inclue um fragmento de arquivo HTML.
      */
-    public function partial( $filepath, $shared = false )
+    public function partial( $filepath, $shared = false, $alt_content = '' )
     {
         if ( !file_exists( DIR_PARTIALS ) )
             Dir::makeDir( DIR_PARTIALS );
@@ -46,6 +46,9 @@ trait PageMakerPartial
                 $result[] = preg_replace( '@.*?templates/html/@', '', $file[ 'file' ] ) . ':' . $file[ 'line' ];
             }
 
+            if ( $alt_content )
+                return $alt_content;
+            
             $msg        = "Arquivo [$file_partial] não encontrado -> " . implode( ' | ', $result );
             throw new Error( $msg );
         }

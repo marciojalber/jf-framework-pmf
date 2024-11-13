@@ -23,15 +23,11 @@ class API
         $feature    = preg_replace_callback( '@(\\\.|_.)@', function( $matches ) {
             return strtoupper( $matches[ 1 ] );
         }, $feature );
-        $feature1   = "App\\Domain\\Features\\{$feature}\Feature";
-        $feature2   = "Features\\{$feature}\Feature";
+        $feature1   = "App\\Services\\{$feature}\Service";
         $feature    = null;
 
         if ( class_exists( $feature1 )  )
             $feature = $feature1;
-        
-        if ( class_exists( $feature2 )  )
-            $feature = $feature2;
         
         if ( !$feature )
             return;

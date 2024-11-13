@@ -94,7 +94,7 @@ class Input
 
         // Itera com os arquivos
         for ( $counter = 0; $counter < $files_count; $counter++ )
-            $files_ajusted[] = self::formatFileItem( $files, $counter, $dir );
+            $files_ajusted[]        = self::formatFileItem( $files, $counter, $dir );
 
         // Retorna os dados dos arquivos
         return $files_ajusted;
@@ -109,9 +109,9 @@ class Input
         $errorCode                      = $files->error[ $counter ];
         
         // Valida um arquivo
-        list( $width, $height )         = getimagesize( $files->tmp_name[ $counter ] );
+        $is_image                       = !!exif_imagetype( $files->tmp_name[ $counter ] );
         
-        if ( !$width && !$height )
+        if ( $is_image )
             $errorCode = 'INVALID_IMAGE';
         
         $errorCode                      = $files->error[ $counter ];
@@ -250,7 +250,7 @@ class Input
                     unset( $var[ '_serial' ] );
                     $var    = array_merge( $var, json_decode( $serial, 1 ) );
                 }
-        
+
                 break;
             
             case 'get':
