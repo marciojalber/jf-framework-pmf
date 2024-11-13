@@ -78,7 +78,7 @@ class FeatureDocWriter
     {
         $classpath      = \JF\Autoloader::getClassFilename( $this->feature );
         $classpath      = dirname( $classpath );
-        $this->docfile  = $classpath . '/_feature.document';
+        $this->docfile  = $classpath . '/_service.document';
     }
 
     /**
@@ -142,7 +142,7 @@ class FeatureDocWriter
         {
             $rule_file      = str_replace( '/', '\\', $rule_file->getPathname() );
             $rule_file      = substr( $rule_file, 0, -4 );
-            $rule_class     = preg_replace( '@.*Features@', 'Features', $rule_file );
+            $rule_class     = preg_replace( '@.*Services@', 'Services', $rule_file );
             $reflection     = new \ReflectionClass( $rule_class );
             $comment        = $reflection->getDocComment();
             $doc            = \JF\Reflection\DocBlockParser::parse( $comment );
@@ -166,7 +166,7 @@ class FeatureDocWriter
         {
             $test_file      = str_replace( '/', '\\', $test_file->getPathname() );
             $test_file      = substr( $test_file, 0, -4 );
-            $test_class     = preg_replace( '@.*Features@', 'Features', $test_file );
+            $test_class     = preg_replace( '@.*Services@', 'Services', $test_file );
             $reflection     = new \ReflectionClass( $test_class );
             $comment        = $reflection->getDocComment();
             $doc            = \JF\Reflection\DocBlockParser::parse( $comment );

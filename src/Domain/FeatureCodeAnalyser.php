@@ -77,7 +77,7 @@ class FeatureCodeAnalyser
         $classpath      = \JF\Autoloader::getClassFilename( $this->feature );
         $this->source   = file_get_contents( $classpath );
         $this->lines    = explode( PHP_EOL, $this->source );
-        $this->docfile  = dirname( $classpath ) . '/_feature.analyse';
+        $this->docfile  = dirname( $classpath ) . '/_service.analyse';
     }
 
     /**
@@ -105,13 +105,13 @@ class FeatureCodeAnalyser
         }
 
         if ( $this->classReflection->getEndLine() > 300 )
-            $this->errors[]     = '<Feature> Classe com mais de 300 linhas';
+            $this->errors[]     = '<Service> Classe com mais de 300 linhas';
 
         if ( count( $this->classMethods ) > 30 )
-            $this->errors[]     = '<Feature> Classe com mais de 30 métodos';
+            $this->errors[]     = '<Service> Classe com mais de 30 métodos';
 
         if ( preg_match( '@\?>@', $this->source ) )
-            $this->errors[]     = '<Feature> A tag de fechamento (?>) deve ser removida';
+            $this->errors[]     = '<Service> A tag de fechamento (?>) deve ser removida';
 
         foreach ( $this->lines as $line => $content )
         {
