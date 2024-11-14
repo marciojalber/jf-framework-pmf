@@ -3,6 +3,7 @@
 namespace JF\HTTP;
 
 use JF\Exceptions\ErrorException as Error;
+use JF\Config;
 
 /**
  * Classe que manipula requisições HTTP.
@@ -54,7 +55,7 @@ class API
         if ( !in_array( $method, $methods ) )
             throw new Error( "Método $method não permitido para a chamada do serviço \"{$route}\"." );
 
-        if ( ENV_DEV )
+        if ( ENV_DEV && Config::get( 'app.codeAnalyse' ) )
         {
             // \JF\Domain\FeatureDocWriter::instance( $feature )->make();
             \JF\Domain\FeatureCodeAnalyser::instance( $feature )->analyse();
