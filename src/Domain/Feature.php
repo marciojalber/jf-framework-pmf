@@ -289,7 +289,7 @@ class Feature extends \StdClass
     protected function registerPerformance( $step, $extra = [] )
     {
         $table      = Config::get( 'logs.performance.table' );
-        $feature    = preg_replace( '@^Features\\\(.*?)\\\Feature@', '$1', static::CLASS );
+        $feature    = preg_replace( '@^App\\\Services\\\(.*?)\\\Service@', '$1', static::CLASS );
         $feature    = str_replace( '\\', '.', $feature );
 
         if ( !$this->servicePerformace )
@@ -321,7 +321,7 @@ class Feature extends \StdClass
     {
         $schema     = Config::get( 'logs.requests.schema' );
         $table      = Config::get( 'logs.requests.table' );
-        $service    = preg_replace( '@^Features\\\(.*?)\\\Feature@', '$1', static::CLASS );
+        $service    = preg_replace( '@^App\\\Services\\\(.*?)\\\Service@', '$1', static::CLASS );
         $service    = str_replace( '\\', '.', $service );
         $data           = [
             'service'   => $service,

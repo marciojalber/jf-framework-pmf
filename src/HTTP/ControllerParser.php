@@ -68,19 +68,16 @@ class ControllerParser
         }
 
         $controller1        = "App\\Services\\{$controller}\\Controller";
-        // $controller2        = "Features\\{$controller}\\Controller";
-        $controller3        = "Controllers\\{$controller}__Controller";
+        $controller2        = "Controllers\\{$controller}__Controller";
         
         if ( file_exists( Autoloader::getClassFilename( $controller1 ) ) )
+        {
             self::$controller   = $controller1;
+            return;
+        }
         
-        /*
         if ( file_exists( Autoloader::getClassFilename( $controller2 ) ) )
             self::$controller   = $controller2;
-        */
-        
-        if ( file_exists( Autoloader::getClassFilename( $controller3 ) ) )
-            self::$controller   = $controller3;
     }
 
     /**
