@@ -2,7 +2,7 @@
 
 namespace JF;
 
-use JF\Exceptions\ErrorException;
+use JF\Exceptions\WarningException as Warning;
 
 /**
  * Modelo de tipo de dado.
@@ -10,13 +10,28 @@ use JF\Exceptions\ErrorException;
 class Type
 {
     /**
+     * Rótulo do dado.
+     */
+    protected static $label         = null;
+
+    /**
      * Valor padrão do dado.
      */
     private static $types           = [
-        'enum', 'set',
-        'number', 'float',
+        'date',
+        'datetime',
+        'time',
+        'enum',
+        'set',
+        'number',
+        'float',
         'text',
     ];
+
+    /**
+     * Tipo do dado.
+     */
+    protected static $type          = 'text';
 
     /**
      * Valor padrão do dado.
@@ -24,29 +39,9 @@ class Type
     protected static $default       = null;
 
     /**
-     * Rótulo do dado.
-     */
-    protected static $label         = null;
-
-    /**
      * Máscara do dado.
      */
     protected static $mask          = null;
-
-    /**
-     * Valor máximo para o dado.
-     */
-    protected static $max           = null;
-
-    /**
-     * Máximo de caracteres para o dado.
-     */
-    protected static $maxlength     = null;
-
-    /**
-     * Máximo de itens para o dado.
-     */
-    protected static $maxitens      = null;
 
     /**
      * Valor mínimo para o dado.
@@ -54,14 +49,29 @@ class Type
     protected static $min           = null;
 
     /**
+     * Valor máximo para o dado.
+     */
+    protected static $max           = null;
+
+    /**
      * Mínimo de caracteres para o dado.
      */
     protected static $minlength     = null;
 
     /**
+     * Máximo de caracteres para o dado.
+     */
+    protected static $maxlength     = null;
+
+    /**
      * Mínimo de itens para o dado.
      */
     protected static $minitens      = null;
+
+    /**
+     * Máximo de itens para o dado.
+     */
+    protected static $maxitens      = null;
 
     /**
      * Opções de resposta para o dado.
@@ -84,57 +94,26 @@ class Type
     protected static $trim          = false;
 
     /**
-     * Tipo do dado.
-     */
-    protected static $type          = 'text';
-
-    /**
-     * Armazena o valor do dado.
-     */
-    protected $value          = null;
-
-    /**
      * Exporta a estrutura do tipo de dado.
      */
     public static function export()
     {
         return [
+            'type'      => static::$type,
             'default'   => static::$default,
             'label'     => static::$label,
             'mask'      => static::$mask,
-            'max'       => static::$max,
-            'maxlength' => static::$maxlength,
-            'maxitens'  => static::$maxitens,
             'min'       => static::$min,
+            'max'       => static::$max,
             'minlength' => static::$minlength,
+            'maxlength' => static::$maxlength,
             'minitens'  => static::$minitens,
+            'maxitens'  => static::$maxitens,
             'options'   => static::$options,
             'pattern'   => static::$pattern,
             'tip'       => static::$tip,
             'trim'      => static::$trim,
-            'type'      => static::$type,
         ];
-    }
-
-    /**
-     * Valida o dado.
-     */
-    public static function validate( $value )
-    {
-        return true;
-    }
-
-    /**
-     * Aplica as validações da estrutura do dado e a validação customizaa.
-     */
-    public static function test( $value )
-    {
-        $instance   = new static( $value );
-        $validation = $instance->isValid();
-
-        return $validation !== true
-            ? $validation
-            : static::validate( $value );
     }
 
     /**
@@ -146,229 +125,239 @@ class Type
     }
 
     /**
-     * Retorna o valor do dado.
+     * Retorna o valor mascarado.
      */
-    public function value()
+    public static function mask( $val )
     {
-        return static::$type == 'text' && static::$trim
-            ? trim( $this->value )
-            : $this->value;
+        return $val;
     }
 
     /**
-     * Aplica as validações da estrutura do dado.
+     * Higieniza o dado informado.
      */
-    public function isValid()
+    public static function sanitize( $value )
     {
-        $label      = static::$label;
+        if ( static::$type == 'text' && is_string( $value ) && static::$trim )
+            return trim( $value );
+        
+        if ( static::$type == 'number' && is_numeric( $value ) )
+            return intval( $value );
+        
+        if ( static::$type == 'float' && is_float( $value ) )
+            return floatval( $value );
+        
+        return $value;
+    }
 
-        if ( true !== ( $validation = self::validateType( $label ) ) )
-        {
-            return $validation;
-        }
+    /**
+     * Encontra a diferença do dado informado e o tipo de dado.
+     */
+    public static function diff( $val, $label = null )
+    {
+        $inst   = new static( $val );
+        $label  ??= static::$label;
 
-        if ( true !== ( $validation = self::validateMax( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( is_null( $val ) )
+            return null;
 
-        if ( true !== ( $validation = self::validateMaxlength( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffType( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validateMaxitens( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMax( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validateMin( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMaxlength( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validateMinlength( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMaxitens( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validateMinitens( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMin( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validateOptions( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMinlength( $val, $label ) )
+            return $diff;
 
-        if ( true !== ( $validation = self::validatePattern( $label ) ) )
-        {
-            return $validation;
-        }
+        if ( $diff = self::diffMinitens( $val, $label ) )
+            return $diff;
 
-        return true;
+        if ( $diff = self::diffOptions( $val, $label ) )
+            return $diff;
+
+        if ( $diff = self::diffPattern( $val, $label ) )
+            return $diff;
+
+        return null;
     }
 
     /**
      * Valida o tipo dado.
      */
-    public function validateType( $label )
+    public static function diffType( $val, $label )
     {
-        if ( is_null( $this->value ) )
+        $scalar         = is_scalar( $val );
+        $type           = static::$type;
+        $date_pattern   = '/^\d{4}-\d{2}-\d{2}$/';
+        $dt_pattern     = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+
+        if ( !in_array( $type, self::$types ) )
+            return "O tipo de dado informado para o validador de [$label] é inválido.";
+
+        if ( $type == 'date' )
         {
-            return true;
+            if ( !$scalar )
+                return "O valor informado para [$label] não é uma data válida.";
+
+            if ( !preg_match( $date_pattern, $val ) )
+                return "O valor informado para [$label] não é uma data válida.";
+
+            $year   = substr( $val, 0, 4 );
+            $month  = substr( $val, 5, 2 );
+            $date   = substr( $val, -2 );
+            
+            if ( !checkdate( $month, $date, $year ) )
+                return "O valor informado para [$label] não é uma data válida.";
         }
 
-        $is_scalar      = is_scalar( $this->value );
-
-        if ( !in_array( static::$type, self::$types ) )
+        if ( $type == 'datetime' )
         {
-            return "O tipo de dado definido para $label é inválido.";
+            if ( !$scalar )
+                return "O valor informado para [$label] não é uma data e hora válida.";
+
+            if ( !preg_match( $dt_pattern, $val ) )
+                return "O valor informado para [$label] não é uma data e hora válida.";
+
+            $year   = substr( $val, 0, 4 );
+            $month  = substr( $val, 5, 2 );
+            $date   = substr( $val, 8, 2 );
+            $hour   = substr( $val, 11, 2 );
+            $min    = substr( $val, 14, 2 );
+            $seg    = substr( $val, -2 );
+            
+            if ( !checkdate( $month, $date, $year ) )
+                return "O valor informado para [$label] não é uma data e hora válida.";
+            
+            if ( $hour < 0 || $hour > 23 )
+                return "O valor informado para [$label] não é uma data e hora válida.";
+            
+            if ( $min < 0 || $min > 59 )
+                return "O valor informado para [$label] não é uma data e hora válida.";
+            
+            if ( $seg < 0 || $seg > 59 )
+                return "O valor informado para [$label] não é uma data e hora válida.";
         }
 
-        if ( static::$type == 'number' )
-        {
-            return $is_scalar && !preg_match( '/[^0-9]/', $this->value )
-                ? true
-                : "O valor informado para $label não é um número.";
-        }
+        if ( $type == 'datetime' && !( $scalar && !preg_match( $dt_pattern, $val ) ) )
+            return "O valor informado para [$label] não é uma data e hora válida.";
 
-        if ( static::$type == 'float' )
-        {
-            return $is_scalar && !preg_match( '/\D/', $this->value )
-                ? true
-                : "O valor informado para $label não é um número ou decimal.";
-        }
+        if ( $type == 'number' && !( $scalar && !preg_match( '/[^0-9]/', $val ) ) )
+            return "O valor informado para [$label] não é um número.";
 
-        if ( static::$type == 'enum' )
-        {
-            return $is_scalar
-                ? true
-                : "O tipo de valor informado para $label é inválido.";
-        }
+        if ( $type == 'float' && !( $scalar && !preg_match( '/\D/', $val ) ) )
+            return "O valor informado para $label não é um número ou decimal.";
 
-        if ( static::$type == 'set' )
-        {
-            return is_array( $this->value )
-                ? true
-                : "O valor informado para $label não é um conjunto de valores.";
-        }
+        if ( $type == 'enum' && !$scalar )
+            return "O tipo de valor informado para $label é inválido.";
+
+        if ( $type == 'set' && !is_array( $val ) )
+            return "O valor informado para $label não é um conjunto de valores.";
 
         return true;
-    }
-
-    /**
-     * Valida o valor máximo do dado.
-     */
-    public function validateMax( $label )
-    {
-        $max = static::$max;
-
-        return $this->value <= $max
-            ? true
-            : "O valor informado para $label é superior a $max.";
-    }
-
-    /**
-     * Valida o máximo de caracteres do dado.
-     */
-    public function validateMaxlength( $label )
-    {
-        $maxlength  = static::$maxlength;
-        $length     = strlen( $this->value );
-
-        return $length <= $maxlength
-            ? true
-            : "$label deve ter até $maxlength caracteres - o valor informado tem $length caracteres.";
-    }
-
-    /**
-     * Valida o máximo de itens do dado.
-     */
-    public function validateMaxitens( $label )
-    {
-        $maxitens   = static::$maxitens;
-        $itens      = count( $this->value );
-
-        return $itens <= $maxitens
-            ? true
-            : "$label deve ter até $maxitens itens - foram informados $itens itens.";
     }
 
     /**
      * Valida o valor mínimo do dado.
      */
-    public function validateMin( $label )
+    public static function diffMin( $val, $label )
     {
         $min = static::$min;
 
-        return $this->value <= $min
-            ? true
-            : "O valor informado para $label é inferior a $min.";
+        if ( $val < static::$min )
+           return "O valor informado para $label é inferior a $min.";
+    }
+
+    /**
+     * Valida o valor máximo do dado.
+     */
+    public static function diffMax( $val, $label )
+    {
+        $max = static::$max;
+
+        if ( $val > static::$max )
+           return "O valor informado para $label é superior a $max.";
     }
 
     /**
      * Valida o mínimo de caracteres do dado.
      */
-    public function validateMinlength( $label )
+    public static function diffMinlength( $val, $label )
     {
         $minlength  = static::$minlength;
-        $length     = strlen( $this->value );
 
-        return $length <= $minlength
-            ? true
-            : "$label deve ter no míninmo $minlength caracteres - o valor informado tem $length caracteres.";
+        if ( !isset( $val[ $minlength ] ) )
+            return "$label deve ter no míninmo $minlength caracteres.";
+    }
+
+    /**
+     * Valida o máximo de caracteres do dado.
+     */
+    public static function diffMaxlength( $val, $label )
+    {
+        $maxlength  = static::$maxlength;
+
+        if ( isset( $val[ $maxlength ] ) )
+            return "$label deve ter no máximo $minlength caracteres.";
     }
 
     /**
      * Valida o mínimo de itens do dado.
      */
-    public function validateMinitens( $label )
+    public static function diffMinitens( $val, $label )
     {
         $minitens   = static::$minitens;
-        $itens      = count( $this->value );
+        $tot_itens  = count( $val );
 
-        return $itens <= $minitens
-            ? true
-            : "$label deve ter no mínimo $minitens itens - foram informados $itens itens.";
+        if ( $tot_itens < $minitens )
+            return "$label deve ter no mínimo $minitens itens.";
     }
 
     /**
-     * Valida o(s) valor(es) informado(s) com a lista de valores permitidas.
+     * Valida o máximo de itens do dado.
      */
-    public function validateOptions( $label )
+    public static function diffMaxitens( $val, $label )
+    {
+        $maxitens   = static::$maxitens;
+        $tot_itens  = count( $val );
+
+        if ( $tot_itens > $maxitens )
+            return "$label deve ter até $maxitens itens.";
+    }
+
+    /**
+     * Valida os valores informados com a lista de valores permitidas.
+     */
+    public static function diffOptions( $val, $label )
     {
         if ( !in_array( static::$type, ['enum', 'set'] ) )
-        {
-            return true;
-        }
+            return null;
 
-        if ( static::$type == 'enum' )
-        {
-            return in_array( $this->value, static::$options )
-                ? true
-                : "O valor informado para $label não consta na lista de valores permitidos.";
-        }
+        if ( static::$type == 'enum' && !in_array( $val, static::$options ) )
+            return "O valor informado para $label é inválido.";
 
-        foreach ( $this->value as $value )
-        {
-            if ( !in_array( $value, static::$options ) )
-            {
-                return "Foi informado para $label um valor que não consta na lista de valores permitidos.";
-            }
-        }
+        if ( static::$type != 'set' )
+            return null;
 
-        return true;
+        foreach ( $val as $item )
+            if ( !in_array( $item, static::$options ) )
+                return "Foi informado para $label um valor inválido.";
     }
 
     /**
      * Valida o formato do dado.
      */
-    public function validatePattern( $label )
+    public static function diffPattern( $val, $label )
     {
-        return preg_match( '/' . static::$pattern . '/', $this->value )
-            ? true
-            : "O valor informado para $label é inválido.";
+        if ( !preg_match( static::$pattern, $val ) )
+            return "O valor informado para $label é inválido.";
     }
 }
