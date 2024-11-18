@@ -59,8 +59,8 @@ class DocParser
         $doc->getDocTeam();
         $doc->getDocTech();
         $doc->getDocPages( DIR_VIEWS );
-        $doc->getDocServices( DIR_FEATURES );
-        $doc->getDocFeatures( DIR_FEATURES );
+        $doc->getDocServices( DIR_SERVICES );
+        $doc->getDocFeatures( DIR_SERVICES );
         $doc->getDocRoutines();
 
         $doc->save();

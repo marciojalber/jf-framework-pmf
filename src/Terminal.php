@@ -60,6 +60,7 @@ final class Terminal
             define( 'DIR_CONTROLLERS',      DIR_APP  . '/Controllers' );
             define( 'DIR_DOMAIN',           DIR_APP  . '/Domain' );
                 define( 'DIR_FEATURES',     DIR_DOMAIN . '/Features' );
+                define( 'DIR_SERVICES',     DIR_DOMAIN . '/Services' );
                 define( 'DIR_RULES',        DIR_DOMAIN . '/Rules' );
             define( 'DIR_ROUTINES',         DIR_APP  . '/Routines' );
         define( 'DIR_CONFIG',               DIR_BASE . '/config' );

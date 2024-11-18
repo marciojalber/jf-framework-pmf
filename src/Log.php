@@ -84,7 +84,7 @@ class Log
 
         $log_instance->makeLogRecord();
         $log_instance->makeLogText();
-        $log_instance->saveLogFeature();
+        $log_instance->saveLogService();
         $log_instance->saveLogDate();
         $log_instance->saveLogDB();
     }
@@ -195,7 +195,7 @@ class Log
     /**
      * Método para escrever o log.
      */
-    protected function saveLogFeature()
+    protected function saveLogService()
     {
         if ( $this->dbTarget )
             return;
