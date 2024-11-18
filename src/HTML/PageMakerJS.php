@@ -98,8 +98,7 @@ trait PageMakerJS
         if ( !$use_route_path )
             return file_put_contents( $filetarget, $source );
         
-        if ( file_exists( $filetarget ) )
-            @unlink( $filetarget );
+        file_exists( $filetarget ) && @unlink( $filetarget );
         
         if ( !$source_is_content )
             return copy( $source, $filetarget );

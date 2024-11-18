@@ -67,7 +67,7 @@ class Log
      * 
      * @return null
      */
-    public static function register( $error, $context, Array $options = array() )
+    public static function register( $error, $context, array $options = array() )
     {
         $log_instance               = new self();
         $log_instance->error        = $error;
@@ -80,7 +80,7 @@ class Log
         $log_instance->canSaveLog();
 
         if ( $context === 'routine' )
-            return $log_instance->saveRoutineLog( $options );
+            return $log_instance->saveRoutineLog( $log_instance );
 
         $log_instance->makeLogRecord();
         $log_instance->makeLogText();
@@ -335,23 +335,38 @@ class Log
     /**
      * Retorna o caminho dos arquivos de log.
      */
-    protected function saveRoutineLog( Array $options )
+    protected function saveRoutineLog( $inst )
     {
-        $name           = str_replace( '\\', '/', $options[ 'name' ] );
-        $start          = $options[ 'start' ];
-        $end            = $options[ 'end' ];
-        $duration       = $options[ 'duration' ];
+        $name           = defined( 'ROUTINE_NAME' )
+            ? ROUTINE_NAME
+            : 'RoutinesHandler';
+        $start          = PROCESS_TIME_START;
+        $end            = intval( microtime(1) );
         
-        $log_filename   = DIR_LOGS . '/routine/' . $name . '.log';
-        $error          = preg_replace( '/[\r\n]+/', PHP_EOL . '           ', $this->error );
+        $segs           = $end - $start;
+        $hr             = intval( $segs / 60 / 60 );
+        $segs           -= $hr * 60 * 60;
+        $min            = intval( $segs / 60 );
+        $segs           -= $min * 60;
+
+        $hr             = substr( '0' . strval( $hr ), -2 );
+        $min            = substr( '0' . strval( $min ), -2 );
+        $segs           = substr( '0' . strval( $segs ), -2 );
+        
+        $start          = date( 'Y-m-d H:i:s', $start );
+        $end            = date( 'Y-m-d H:i:s', $end );
+        $duration       = "$hr:$min:$segs";
+        
+        $log_filename   = DIR_LOGS . "/routine/{$name}.log";
+        $error          = preg_replace( '/[\r\n]+/', PHP_EOL . '           ', $this->error[ 'message' ] );
 
         $log            = new IniMaker();
         $log->addSection( uniqid( '', true ) );
-        $log->addLine( 'DATE', date( 'Y-m-d' ) );
         $log->addLine( 'START', $start );
         $log->addLine( 'END', $end );
         $log->addLine( 'DURATION', $duration );
         $log->addLine( 'RESULT', $error );
+        $log->addLine( 'TRACE', $inst->error[ 'stack' ] );
 
         $log_file       = new \SplFileObject( $log_filename, 'a' );
         $result         = $log_file->fwrite( $log->content() . PHP_EOL );

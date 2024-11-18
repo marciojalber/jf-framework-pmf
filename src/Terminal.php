@@ -40,6 +40,9 @@ final class Terminal
      */
     private static function defines( $dirbase, $document_root )
     {
+        define( 'JF_TESTING', 0 );
+        define( 'PROCESS_TIME_START', (int) microtime(1) );
+
         // Sistema operacional
         define( 'WIN',              substr( PHP_OS, 0, 3 ) == 'WIN' );
 
