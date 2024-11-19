@@ -11,6 +11,16 @@ use JF\Reflection\DocBlockParser;
 class TestsRunner extends \StdClass
 {
     /**
+     * Classes de entidade.
+     */
+    private $classes    = [];
+
+    /**
+     * Cálculo da cobertura de testes.
+     */
+    private $totals     = [];
+
+    /**
      * Testes.
      */
     private $tests      = [];
@@ -78,43 +88,66 @@ class TestsRunner extends \StdClass
         $inst->timeStart    = time();
         $inst->timeEnd      = 0;
         $inst->lenbase      = strlen( DIR_BASE ) + 1;
-        $inst->ns           = Config::get( 'namespaces' );
-
-        foreach ( $inst->ns as &$item )
-            $item           = str_replace( '/', '\\', $item );
-
-        $inst->ns           = array_flip( (array) $inst->ns );
-        
-        $inst->parse( DIR_APP );
+        $inst->context      = null;
+        $inst->parse( DIR_APP . '/DTO', 'DTO' );
+        $inst->parse( DIR_APP . '/Providers', 'Providers' );
+        $inst->parse( DIR_APP . '/Services', 'Services' );
+        $inst->parse( DIR_APP . '/Types', 'Types' );
         $inst->timeEnd      = time();
+        $inst->calcTotals();
         $inst->sendText();
     }
 
     /**
      * Executa os testes automatizados.
      */
-    private function parse( $path )
+    private function parse( $path, $context = null )
     {
-        $dir = new \FilesystemIterator( $path );
+        if ( $context )
+        {
+            $this->context = $context;
+
+            if ( !isset( $this->classes[ $context ] ) )
+            {
+                $this->classes[ $context ]  = [];
+                $this->totals[ $context ]   = (object) [
+                    'total'                 => 0,
+                    'coverage'              => 0,
+                ];
+            }
+        }
+
+        $dir    = new \FilesystemIterator( $path );
+        $lendir = $this->lenbase + 4 + strlen( $this->context ) + 1;
 
         foreach ( $dir as $item )
         {
+            $subpath        = $item->getPathname();
+            $pathroot       = dirname( $item->getPathname() );
+            $subpath_name   = $item->getFilename();
+
             if ( $item->isDir() )
             {
-                $subpath = $item->getPathname();
-                $this->parse( $subpath );
+                if ( $subpath_name != 'Rules')
+                    $this->parse( $subpath );
+
                 continue;
             }
 
-            $path = $item->getPathname();
+            if ( $context )
+                continue;
+
+            $entity_id      = substr( $pathroot, $lendir );
+            
+            if ( !isset( $this->classes[ $this->context ][ $entity_id ] ) )
+                $this->classes[ $this->context ][ $entity_id ] = 0;
 
             if ( substr( $item->getPathname(), -8 ) != 'Test.php' )
                 continue;
-            
-            $classname  = $this->getClassName( $path );
-            
-            $refclass   = new \ReflectionClass( $classname );
-            $methods    = $refclass->getMethods();
+
+            $classname      = $this->getClassName( $subpath );
+            $refclass       = new \ReflectionClass( $classname );
+            $methods        = $refclass->getMethods();
 
             foreach ( $methods as $i => $method )
             {
@@ -126,6 +159,7 @@ class TestsRunner extends \StdClass
                 if ( substr( $name, 0, 4 ) != 'test' )
                     continue;
 
+                $this->classes[ $this->context ][ $entity_id ] = 1;
                 $test               = new $classname();
                 $result             = $test->executeTest( $name );
                 $tot_asserts        = $test->totalAsserts();
@@ -174,17 +208,29 @@ class TestsRunner extends \StdClass
     private function getClassName( $path )
     {
         $classname = substr( $path, $this->lenbase, -4 );
-
-        foreach ( $this->ns as $ns => $ns_class )
-        {
-            if ( $ns != substr( $classname, 0, strlen( $ns ) ) )
-                continue;
-
-            $classname = $ns_class . substr( $classname, strlen( $ns ) );
-            break;
-        }
+        $classname = str_replace( '/', '\\', $classname );
 
         return $classname;
+    }
+
+    /**
+     * Envia o texto de saída.
+     */
+    private function calcTotals()
+    {
+        foreach ( $this->classes as $context => $items )
+        {
+            foreach ( $items as $class => $val )
+            {
+                if ( $val )
+                {
+                    echo $class . PHP_EOL;
+                }
+
+                $this->totals[ $context ]->coverage += $val;
+                ++$this->totals[ $context ]->total;
+            }
+        }
     }
 
     /**
@@ -206,6 +252,13 @@ class TestsRunner extends \StdClass
         echo PHP_EOL;
         echo 'Total de asserções   : ' . $this->asserts . PHP_EOL;
         echo 'Total de testes      : ' . count( $this->tests ) . PHP_EOL;
+        echo PHP_EOL;
+
+        foreach ( $this->totals as $context => $values )
+        {
+            $perc   = number_format( $values->coverage * 100 / $values->total, 1, ',', '' );
+            echo str_pad( "Cobertura de testes em $context", 33 ) . ": {$values->coverage} / {$values->total} ($perc%)" . PHP_EOL;
+        }
 
         if ( !$this->tests )
         {
