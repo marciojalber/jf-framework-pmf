@@ -247,9 +247,6 @@ class Type
                 return "O valor informado para [$label] não é uma data e hora válida.";
         }
 
-        if ( $type == 'datetime' && !( $scalar && !preg_match( $dt_pattern, $val ) ) )
-            return "O valor informado para [$label] não é uma data e hora válida.";
-
         if ( $type == 'number' && !( $scalar && !preg_match( '/[^0-9]/', $val ) ) )
             return "O valor informado para [$label] não é um número.";
 
