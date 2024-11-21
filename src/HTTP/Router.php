@@ -203,9 +203,7 @@ class Router
     public static function get( $param = null )
     {
         if ( !$param )
-        {
             return self::$route;
-        }
 
         return isset( self::$route->$param )
             ? self::$route->$param

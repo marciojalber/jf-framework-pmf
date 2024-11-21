@@ -249,9 +249,7 @@ class Request
     public static function partialTime()
     {
         if ( !self::$old_time )
-        {
             self::$old_time = $_SERVER[ 'REQUEST_TIME_FLOAT' ];
-        }
         
         $new_time           = microtime( true );
         $diff               = $new_time - self::$old_time;

@@ -63,7 +63,6 @@ class Feature extends \StdClass
      */
     protected function setSteps()
     {
-        
     }
 
     /**
