@@ -5,6 +5,7 @@ namespace JF\DB;
 use JF\DB\DB;
 use JF\Exceptions\InfoException as Info;
 use JF\Exceptions\ErrorException as Error;
+use JF\Exceptions\WarningException as Warning;
 use JF\Types\DateTime__Type;
 
 /**
@@ -12,6 +13,31 @@ use JF\Types\DateTime__Type;
  */
 class DTO extends \StdClass
 {
+    /**
+     * Esquema de conexão de todos os DTOs.
+     */
+    private static $schemas         = [];
+    
+    /**
+     * Tabelas de todos os DTOs.
+     */
+    private static $tables          = [];
+    
+    /**
+     * Chave-primária da tabela.
+     */
+    protected static $priKeys       = [];
+    
+    /**
+     * Dados sensíveis / privados do registro.
+     */
+    protected static $hides         = [];
+    
+    /**
+     * Colunas de todos os DTOs.
+     */
+    protected static $dtoColumns    = [];
+    
     /**
      * Esquema de conexão.
      */
@@ -47,7 +73,6 @@ class DTO extends \StdClass
      */
     protected $msgOnUnchanged;
     
-    
     /**
      * Mensagem de erro em caso de falha na execução da operação.
      */
@@ -63,7 +88,12 @@ class DTO extends \StdClass
      */
     public static function schema()
     {
-        return static::$schema;
+        $class =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+
+        return self::$schemas[ $class ] ?? static::$schema;
     }
 
     /**
@@ -79,7 +109,12 @@ class DTO extends \StdClass
      */
     public static function table()
     {
-        return static::$table;
+        $class =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+        
+        return self::$tables[ $class ] ?? static::$table;
     }
 
     /**
@@ -87,7 +122,12 @@ class DTO extends \StdClass
      */
     public static function structure()
     {
-        return static::$columns;
+        $class =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+        
+        return self::$dtoColumns[ $class ] ?? static::$columns;
     }
 
     /**
@@ -99,86 +139,250 @@ class DTO extends \StdClass
     }
 
     /**
-     * Retorna a estrutura de colunas do model.
+     * Valida os dados do objeto.
      */
-    public static function validateData( $label, $colname, $value, $params = [] )
+    private static function captureColumns()
     {
-        if ( !isset( static::$columns[ $colname ] ) )
+        $class      = get_called_class();
+        $ref_class  = new \ReflectionClass( $class );
+        $attrs      = $ref_class->getAttributes();
+
+        foreach ( $attrs as $attr )
         {
-            $msg = Messager::get( 'db', 'column_not_exists_to_validate', $column, get_called_class() );
-            throw new Error( $msg );
+            $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
+            $val        = $attr->getArguments()[0] ?? null;
+
+            if ( $name == 'schema' && $val )
+                static::$schemas[ $class ]  = $val;
+
+            if ( $name == 'table' && $val )
+                static::$tables[ $class ]   = $val;
         }
 
-        $column     = static::$columns[ $colname ];
-        $required   = $column[ 'required' ]     ?? false;
-        $type       = $column[ 'type' ]         ?? false;
-        $decimals   = $column[ 'decimals' ]     ?? 0;
-        $min        = $column[ 'min' ]          ?? null;
-        $max        = $column[ 'max' ]          ?? null;
-        $minlength  = $column[ 'minlength' ]    ?? null;
-        $maxlength  = $column[ 'maxlength' ]    ?? null;
-        $currency   = $column[ 'currency' ]     ?? null;
-        $options    = $column[ 'options' ]      ?? null;
-        $range      = $column[ 'range' ]        ?? null;
+        $cols       = $ref_class->getProperties();
+        $columns    = [];
+        self::$hides[ $class ] = [];
 
-        if ( !$required && ( $value === null || $value === '' || $value === [] ) )
-            return;
-
-        if ( $required && ( $value === null || $value === '' || $value === [] ) )
+        foreach ( $cols as $col )
         {
-            if ( isset( $params[ 'required' ] ) )
-                throw new Error( $params[ 'required' ] );
+            if ( !$col->isPublic() || $col->isStatic() )
+                continue;
             
-            throw new Error( App\App::textInvalidatedRequired( $label ) );
-        }
-
-        if ( !is_null( $type ) && $type == 'date' && !DateTime__Type::validateDate( $value ) )
-            throw new Error( App\App::textInvalidatedDate( $label ) );
-
-        if ( !is_null( $type ) && $type == 'time' && !DateTime__Type::validateTime( $value ) )
-            throw new Error( App\App::textInvalidatedTime( $label ) );
-
-        if ( !is_null( $type ) && $type == 'email' && !filter_var( $value, FILTER_VALIDATE_EMAIL ) )
-            throw new Error( App\App::textInvalidatedEmail( $label ) );
-
-        if ( !is_null( $min ) && $value < $min )
-        {
-            $value_formated     = number_format( $value, $decimals, ',', '.' );
-            $min_formated       = number_format( $min, $decimals, ',', '.' );
-            throw new Error( App\App::textInvalidatedMin( $label, $value_formated, $min_formated, $currency ) );
-        }
-
-        if ( !is_null( $max ) && $value > $max )
-        {
-            $value_formated     = number_format( $value, $decimals, ',', '.' );
-            $max_formated       = number_format( $max, $decimals, ',', '.' );
-            throw new Error( App\App::textInvalidatedMax( $label, $value_formated, $max_formated, $currency ) );
-        }
-
-        if ( !is_null( $minlength ) && !isset( $value[ $minlength ] ) )
-        {
-            $len_formated       = number_format( strlen( $value ), 0, ',', '.' );
-            $minlength_formated = number_format( $minlength, 0, ',', '.' );
-            throw new Error( App\App::textInvalidatedMinlength( $label, strlen( $value ), $minlength_formated ) );
-        }
-
-        if ( !is_null( $maxlength ) && isset( $value[ $maxlength ] ) )
-        {
-            $len_formated       = number_format( strlen( $value ), 0, ',', '.' );
-            $maxlength_formated = number_format( $maxlength, 0, ',', '.' );
-            throw new Error( App\App::textInvalidatedMaxlength( $label, strlen( $value ), $maxlength_formated ) );
-        }
-
-        if ( !is_null( $options ) && !isset( $options[ $value ] ) )
-        {
-            if ( isset( $params[ 'option' ] ) )
-                throw new Error( $params[ 'option' ] );
+            $attrs                  = $col->getAttributes();
+            $columns[ $col->name ]  = (object) [
+                'desc'              => $col->name,
+            ];
             
-            throw new Error( App\App::textInvalidatedOption( $label ) );
-        }
+            if ( $attrs )
+            {
+                foreach ( $attrs as $attr )
+                {
+                    $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
+                    $val        = $attr->getArguments()[0] ?? null;
+                    $attr_void  = ['priKey', 'hide', 'required', 'trim'];
+                    $attr_arg   = [
+                        'type', 'desc',
+                        'min', 'max',
+                        'minlength', 'maxlength',
+                        'lessThan', 'lessEqThan',
+                        'greaterThan', 'greaterEqThan',
+                    ];
 
-        if ( !is_null( $range ) && ( $value < $range[0] || $value > $range[1] ) )
-            throw new Error( App\App::textInvalidatedRange( $label, $range[0], $range[1] ) );
+                    if ( in_array( $name, $attr_void ) )
+                        $columns[ $col->name ]->$name = 1;
+
+                    if ( in_array( $name, $attr_arg ) )
+                        $columns[ $col->name ]->$name = $val;
+                }
+
+                if ( !empty( $columns[ $col->name ]->priKey ) )
+                    self::$priKeys[ $class ]    = $col->name;
+
+                if ( !empty( $columns[ $col->name ]->hide ) )
+                    self::$hides[ $class ][]    = $col->name;
+            }
+
+            $label = $columns[ $col->name ]->desc;
+
+            if ( empty( $columns[ $col->name ]->type ) )
+                throw new Warning( "Nenhum tipo de dado definido para [$label]." );
+        }
+        
+        static::$dtoColumns[ $class ] = $columns;
+    }
+
+    /**
+     * Valida os dados do objeto.
+     */
+    public function sanitize()
+    {
+        $props          = static::structure();
+
+        foreach ( $props as $key => $prop )
+        {
+            $val = $this->$key ?? null;
+
+            if ( $val === null || $val === '' )
+                continue;
+
+            if ( $prop->type == 'name' )
+                $this->$key = preg_replace( '@[\s\t]+@', ' ', trim( $this->$key ) );
+        }
+    }
+
+    /**
+     * Valida os dados do objeto.
+     */
+    public function validate()
+    {
+        $props          = static::structure();
+        $date_pattern   = '/^\d{4}-\d{2}-\d{2}$/';
+        $dt_pattern     = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+        $types          = ['str', 'name', 'email', 'int', 'float', 'date', 'datetime' ];
+        
+        foreach ( $props as $key => $prop )
+        {
+            $val        = $this->$key ?? null;
+            $label      = $prop->desc;
+
+            if ( !empty( $prop->required ) && ( $val === null || $val === '' ) )
+                throw new Warning( "É obrigatório um valor para [{$prop->desc}]." );
+
+            if ( $val === null || $val === '' )
+                continue;
+
+            $strlen     = isset( $prop->minlength ) || isset( $prop->maxlength )
+                ? mb_strlen( $val )
+                : null;
+
+            if ( !empty( $prop->min ) && $prop->min > $val )
+                throw new Warning( "O valor de [$label] deve ser maior ou igual a [{$prop->min}]." );
+
+            if ( !empty( $prop->max ) && $prop->max < $val )
+                throw new Warning( "O valor de [$label] deve ser menor ou igual a [{$prop->max}]." );
+            
+            if ( !empty( $prop->minlength ) && $strlen < $prop->minlength )
+                throw new Warning( "O valor de [$label] deve ter pelo menos [{$prop->minlength}] caracteres." );
+
+            if ( !empty( $prop->maxlength ) && isset( $val[ $prop->maxlength ] ) )
+                throw new Warning( "O valor de [$label] deve ter até [{$prop->maxlength}] caracteres." );
+
+            if ( !empty( $prop->lessThan ) )
+            {
+                $comp = $prop->lessThan;
+
+                if ( !isset( $props[ $comp ] ))
+                    throw new Warning( "Definido um campo inexistente para MENOR QUE em [$label]." );
+
+                $vlr    = $this->$comp;
+                $vlr_ok = $this->$comp === null || $this->$comp === '';
+
+                if ( $this->$comp !== null && $this->$comp !== '' && $vlr <= $val )
+                    throw new Warning( "[$label] deve ser menor que [{$props[ $comp ]->desc}]." );
+            }
+
+            if ( !empty( $prop->lessEqThan ) )
+            {
+                $comp = $prop->lessEqThan;
+
+                if ( !isset( $props[ $comp ] ))
+                    throw new Warning( "Definido um campo inexistente para MENOR OU IGUAL A em [$label]." );
+
+                $vlr    = $this->$comp;
+                $vlr_ok = $this->$comp === null || $this->$comp === '';
+
+                if ( $this->$comp !== null && $this->$comp !== '' && $vlr < $val )
+                    throw new Warning( "[$label] deve ser menor ou igual a [{$props[ $comp ]->desc}]." );
+            }
+
+            if ( !empty( $prop->greaterThan ) )
+            {
+                $comp = $prop->greaterThan;
+
+                if ( !isset( $props[ $comp ] ))
+                    throw new Warning( "Definido um campo inexistente para MAIOR QUE em [$label]." );
+
+                $vlr    = $this->$comp;
+                $vlr_ok = $this->$comp === null || $this->$comp === '';
+
+                if ( $this->$comp !== null && $this->$comp !== '' && $vlr >= $val )
+                    throw new Warning( "[$label] deve ser maior que [{$props[ $comp ]->desc}]." );
+            }
+
+            if ( !empty( $prop->greaterEqThan ) )
+            {
+                $comp = $prop->greaterEqThan;
+
+                if ( !isset( $props[ $comp ] ))
+                    throw new Warning( "Definido um campo inexistente para MAIOR OU IGUAL A em [$label]." );
+
+                $vlr    = $this->$comp;
+                $vlr_ok = $this->$comp === null || $this->$comp === '';
+
+                if ( $this->$comp !== null && $this->$comp !== '' && $vlr > $val )
+                    throw new Warning( "[$label] deve ser maior ou igual a [{$props[ $comp ]->desc}]." );
+            }
+
+            if ( empty( $prop->type ) )
+                continue;
+
+            if ( !in_array( $prop->type, $types ) )
+                throw new Warning( "Tipo de dado definido para [$label] é inválido." );
+
+            if ( $prop->type == 'str' && !is_string( $val ) )
+                throw new Warning( "O valor informado para [$label] não é um texto." );
+
+            if ( $prop->type == 'name' && !is_string( $val ) )
+                throw new Warning( "O valor informado para [$label] não é um nome." );
+
+            if ( $prop->type == 'email' && ( !is_string( $val ) || !filter_var( $val, FILTER_VALIDATE_EMAIL ) ) )
+                throw new Warning( "O valor informado para [$label] não é um e-mail." );
+
+            if ( $prop->type == 'int' )
+                if ( !( is_int( $val ) || is_string( $val ) && !preg_match( '@^-?\d+$@', $val ) ) )
+                    throw new Warning( "O valor informado para [$label] não é um número." );
+
+            if ( $prop->type == 'float' && !is_numeric( $val ) )
+                throw new Warning( "O valor informado para $label não é um número ou decimal." );
+
+            if ( $prop->type == 'date' )
+            {
+                if ( !preg_match( $date_pattern, $val ) )
+                    throw new Warning( "O valor informado para [$label] não é uma data." );
+
+                $year   = substr( $val, 0, 4 );
+                $month  = substr( $val, 5, 2 );
+                $date   = substr( $val, -2 );
+                
+                if ( !checkdate( $month, $date, $year ) )
+                    throw new Warning( "O valor informado para [$label] não é uma data." );
+            }
+
+            if ( $prop->type == 'datetime' )
+            {
+                if ( !preg_match( $dt_pattern, $val ) )
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+
+                $year   = substr( $val, 0, 4 );
+                $month  = substr( $val, 5, 2 );
+                $date   = substr( $val, 8, 2 );
+                $hour   = substr( $val, 11, 2 );
+                $min    = substr( $val, 14, 2 );
+                $seg    = substr( $val, -2 );
+                
+                if ( !checkdate( $month, $date, $year ) )
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                
+                if ( $hour < 0 || $hour > 23 )
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                
+                if ( $min < 0 || $min > 59 )
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                
+                if ( $seg < 0 || $seg > 59 )
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+            }
+        }
     }
 
     /**
@@ -186,9 +390,16 @@ class DTO extends \StdClass
      */
     public static function hide( $column = null )
     {
+        $class =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+
+        $hides = self::$hides[ $class ] ?? static::$hide;
+
         return $column
-            ? in_array( $column, static::$hide )
-            : static::$hide;
+            ? in_array( $column, $hides )
+            : $hides;
     }
 
     /**
@@ -196,7 +407,12 @@ class DTO extends \StdClass
      */
     public static function primaryKey()
     {
-        return 'id';
+        $class =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+
+        return static::$priKey ?? 'id';
     }
 
     /**
@@ -210,7 +426,9 @@ class DTO extends \StdClass
             ? $opts[ 'columns' ]
             : null;
 
-        foreach ( static::$columns as $column => $prop )
+        $_columns   = static::structure();
+
+        foreach ( $_columns as $column => $prop )
         {
             $col_hide   = in_array( $column, static::$hide );
 
@@ -321,6 +539,11 @@ class DTO extends \StdClass
             return $this;
         }
 
+        $class                      =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+
         $record_is_saved            = $this->_status == 'saved';
         $column_exists              = array_key_exists( $key, static::$columns );
         $value_changed              = array_key_exists( $key, $this->_changed );
@@ -343,6 +566,11 @@ class DTO extends \StdClass
         if ( $unsafe )
             return $data;
 
+        $class      =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
+
         $data   = array_intersect_key( $data, static::$columns );
 
         return (object) $data;
@@ -355,6 +583,11 @@ class DTO extends \StdClass
     {
         $data   = (array) $this;
         $record = new static();
+
+        $class  =  get_called_class();
+
+        if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
+            static::captureColumns();
         
         array_walk( $data, function( $value, $key ) use ( $record )
         {

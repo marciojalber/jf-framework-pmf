@@ -173,19 +173,13 @@ class SQLBuilder
     protected function setColumns()
     {
         if ( $this->type === 'exists' )
-        {
             return $this->columns = '1';
-        }
 
         if ( $this->type === 'count' )
-        {
             return $this->columns = 'COUNT(1) `total`';
-        }
 
         if ( is_string( $this->sql->select ) )
-        {
             return $this->columns = $this->sql->select;
-        }
         
         if ( !$this->sql->select )
         {
@@ -214,16 +208,15 @@ class SQLBuilder
     protected function setGroup()
     {
         $group = array();
+
         foreach ( $this->sql->group as $column )
-        {
             $group[] = "`$table`.`$column`";
-        }
 
         $group = implode( ', ', $group );
+
         if ( $group )
-        {
             $group = 'GROUP BY ' . $group;
-        }
+
         $this->group = $group;
     }
 

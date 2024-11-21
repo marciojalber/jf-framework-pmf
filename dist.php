@@ -27,6 +27,7 @@ class PHPCompiler
 	 */
 	public static function init()
 	{
+        date_default_timezone_set( 'America/Sao_Paulo' );
 		$instance 				= new self();
 		$instance->pharTarget 	= $_SERVER[ 'QUERY_STRING' ] == 'jfc'
 			? ['jfc.phar', 'Terminal.php']

@@ -54,7 +54,7 @@ class Feature extends \StdClass
      */
     public function __destruct()
     {
-        if ( !JF_TESTING )
+        if ( !JF_TESTING && Config::get( 'app.registerRequest' ) )
             $this->registerRequest();
     }
 
@@ -63,7 +63,6 @@ class Feature extends \StdClass
      */
     protected function setSteps()
     {
-        
     }
 
     /**
@@ -99,9 +98,7 @@ class Feature extends \StdClass
         $instance = new static();
         
         foreach ( $props as $key => $value )
-        {
             $instance->set( $key, $value );
-        }
 
         return $instance;
     }
@@ -136,9 +133,7 @@ class Feature extends \StdClass
         foreach ( $props as $prop )
         {
             if ( !$prop->isPublic() || $prop->isStatic() )
-            {
                 continue;
-            }
 
             $comment            = $prop->getDocComment();
             $name               = $prop->getName();
@@ -223,11 +218,11 @@ class Feature extends \StdClass
 
         foreach ( $namespaces as $ns => $path )
         {
-            if ( strpos( $rule_ns, $ns ) === 0 )
-            {
-                $rules_path = $path . substr( $rule_ns, strlen( $ns ) );
-                break;
-            }
+            if ( strpos( $rule_ns, $ns ) !== 0 )
+                continue;
+
+            $rules_path = $path . substr( $rule_ns, strlen( $ns ) );
+            break;
         }
 
         $rules_path     = str_replace( '\\', '/', $rules_path );
