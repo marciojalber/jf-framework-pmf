@@ -9,7 +9,7 @@ use JF\Exceptions\WarningException as Warning;
 use JF\Types\DateTime__Type;
 
 /**
- * Data Object Transfer - Classe representativa de um registro da tabela.
+ * Data Transfer Object - Classe representativa de um registro da tabela.
  */
 class DTO extends \StdClass
 {
