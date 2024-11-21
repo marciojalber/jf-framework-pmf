@@ -267,6 +267,9 @@ class DTO extends \StdClass
             if ( !empty( $prop->maxlength ) && isset( $val[ $prop->maxlength ] ) )
                 throw new Warning( "O valor de [$label] deve ter até [{$prop->maxlength}] caracteres." );
 
+            if ( !empty( $prop->opts ) && !in_array( $val, $prop->opts ) )
+                throw new Warning( "Valor inválido informado para [$label]." );
+
             if ( !empty( $prop->lessThan ) )
             {
                 $comp = $prop->lessThan;
