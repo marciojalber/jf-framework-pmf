@@ -159,6 +159,11 @@ class DTO extends \StdClass
                 static::$tables[ $class ]   = $val;
         }
 
+        $types          = [
+            'str', 'name', 'email',
+            'bit', 'int', 'float',
+            'date', 'datetime',
+        ];
         $cols       = $ref_class->getProperties();
         $columns    = [];
         self::$hides[ $class ] = [];
@@ -172,6 +177,7 @@ class DTO extends \StdClass
             $columns[ $col->name ]  = (object) [
                 'desc'              => $col->name,
             ];
+            $column                 = &$columns[ $col->name ];
             
             if ( $attrs )
             {
@@ -189,23 +195,28 @@ class DTO extends \StdClass
                     ];
 
                     if ( in_array( $name, $attr_void ) )
-                        $columns[ $col->name ]->$name = 1;
+                        $column->$name = 1;
 
                     if ( in_array( $name, $attr_arg ) )
-                        $columns[ $col->name ]->$name = $val;
+                        $column->$name = $val;
                 }
 
-                if ( !empty( $columns[ $col->name ]->priKey ) )
+                if ( !empty( $column->priKey ) )
                     self::$priKeys[ $class ]    = $col->name;
 
-                if ( !empty( $columns[ $col->name ]->hide ) )
+                if ( !empty( $column->hide ) )
                     self::$hides[ $class ][]    = $col->name;
             }
 
-            $label = $columns[ $col->name ]->desc;
+            $label = $column->desc;
 
-            if ( empty( $columns[ $col->name ]->type ) )
+            if ( empty( $column->type ) )
                 throw new Warning( "Nenhum tipo de dado definido para [$label]." );
+
+            if ( !in_array( $column->type, $types ) )
+                throw new Warning( "Tipo de dado definido para [$label] é inválido." );
+            
+            $column                 = null;
         }
         
         static::$dtoColumns[ $class ] = $columns;
@@ -238,7 +249,6 @@ class DTO extends \StdClass
         $props          = static::structure();
         $date_pattern   = '/^\d{4}-\d{2}-\d{2}$/';
         $dt_pattern     = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
-        $types          = ['str', 'name', 'email', 'int', 'float', 'date', 'datetime' ];
         
         foreach ( $props as $key => $prop )
         {
@@ -266,6 +276,9 @@ class DTO extends \StdClass
 
             if ( !empty( $prop->maxlength ) && isset( $val[ $prop->maxlength ] ) )
                 throw new Warning( "O valor de [$label] deve ter até [{$prop->maxlength}] caracteres." );
+
+            if ( !empty( $prop->opts ) && !in_array( $val, $prop->opts ) )
+                throw new Warning( "Valor inválido informado para [$label]." );
 
             if ( !empty( $prop->lessThan ) )
             {
@@ -323,12 +336,6 @@ class DTO extends \StdClass
                     throw new Warning( "[$label] deve ser maior ou igual a [{$props[ $comp ]->desc}]." );
             }
 
-            if ( empty( $prop->type ) )
-                continue;
-
-            if ( !in_array( $prop->type, $types ) )
-                throw new Warning( "Tipo de dado definido para [$label] é inválido." );
-
             if ( $prop->type == 'str' && !is_string( $val ) )
                 throw new Warning( "O valor informado para [$label] não é um texto." );
 
@@ -337,6 +344,9 @@ class DTO extends \StdClass
 
             if ( $prop->type == 'email' && ( !is_string( $val ) || !filter_var( $val, FILTER_VALIDATE_EMAIL ) ) )
                 throw new Warning( "O valor informado para [$label] não é um e-mail." );
+
+            if ( $prop->type == 'bit' && !in_array( $val, [0, 1] ) )
+                throw new Warning( "Valor inválido informado para [$label]." );
 
             if ( $prop->type == 'int' )
                 if ( !( is_int( $val ) || is_string( $val ) && !preg_match( '@^-?\d+$@', $val ) ) )
