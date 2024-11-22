@@ -94,6 +94,11 @@ class Type
     protected static $trim          = false;
 
     /**
+     * Valor da instância.
+     */
+    protected $value;
+
+    /**
      * Exporta a estrutura do tipo de dado.
      */
     public static function export()
@@ -258,8 +263,6 @@ class Type
 
         if ( $type == 'set' && !is_array( $val ) )
             return "O valor informado para $label não é um conjunto de valores.";
-
-        return true;
     }
 
     /**
@@ -280,7 +283,7 @@ class Type
     {
         $max = static::$max;
 
-        if ( $val > static::$max )
+        if ( $max && $val > static::$max )
            return "O valor informado para $label é superior a $max.";
     }
 
@@ -291,7 +294,7 @@ class Type
     {
         $minlength  = static::$minlength;
 
-        if ( !isset( $val[ $minlength ] ) )
+        if ( $minlength && !isset( $val[ $minlength ] ) )
             return "$label deve ter no míninmo $minlength caracteres.";
     }
 
@@ -302,7 +305,7 @@ class Type
     {
         $maxlength  = static::$maxlength;
 
-        if ( isset( $val[ $maxlength ] ) )
+        if ( $maxlength && isset( $val[ $maxlength ] ) )
             return "$label deve ter no máximo $minlength caracteres.";
     }
 
@@ -312,6 +315,10 @@ class Type
     public static function diffMinitens( $val, $label )
     {
         $minitens   = static::$minitens;
+
+        if ( !$minitens )
+            return;
+
         $tot_itens  = count( $val );
 
         if ( $tot_itens < $minitens )
@@ -324,6 +331,10 @@ class Type
     public static function diffMaxitens( $val, $label )
     {
         $maxitens   = static::$maxitens;
+
+        if ( !$maxitens )
+            return;
+
         $tot_itens  = count( $val );
 
         if ( $tot_itens > $maxitens )
@@ -354,7 +365,7 @@ class Type
      */
     public static function diffPattern( $val, $label )
     {
-        if ( !preg_match( static::$pattern, $val ) )
+        if ( static::$pattern && !preg_match( static::$pattern, $val ) )
             return "O valor informado para $label é inválido.";
     }
 }
