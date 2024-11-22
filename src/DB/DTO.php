@@ -545,7 +545,8 @@ class DTO extends \StdClass
             static::captureColumns();
 
         $record_is_saved            = $this->_status == 'saved';
-        $column_exists              = array_key_exists( $key, static::$columns );
+        $class                      = get_called_class();
+        $column_exists              = array_key_exists( $key, $class::structure() );
         $value_changed              = array_key_exists( $key, $this->_changed );
 
         if ( $record_is_saved && $column_exists && !$value_changed )
@@ -571,7 +572,7 @@ class DTO extends \StdClass
         if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
             static::captureColumns();
 
-        $data   = array_intersect_key( $data, static::$columns );
+        $data   = array_intersect_key( $data, $class::structure() );
 
         return (object) $data;
     }
@@ -581,20 +582,21 @@ class DTO extends \StdClass
      */
     public function filter()
     {
-        $data   = (array) $this;
-        $record = new static();
-
-        $class  =  get_called_class();
+        $data       = (array) $this;
+        $record     = new static();
+        $class      =  get_called_class();
 
         if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
             static::captureColumns();
+
+        $columns    = $class::structure();
         
         array_walk( $data, function( $value, $key ) use ( $record )
         {
             if ( in_array( $key, static::$hide ) )
                 return;
 
-            if ( !array_key_exists( $key, static::$columns ) )
+            if ( !array_key_exists( $key, $columns ) )
                 return;
 
             $record->$key = $value;
