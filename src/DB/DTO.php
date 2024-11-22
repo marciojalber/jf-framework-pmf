@@ -160,8 +160,8 @@ class DTO extends \StdClass
         }
 
         $types          = [
-            'str', 'name', 'email',
-            'bit', 'int', 'float',
+            'str',  'name',     'email',
+            'bit',  'int',      'float',
             'date', 'datetime',
         ];
         $cols       = $ref_class->getProperties();
@@ -187,11 +187,11 @@ class DTO extends \StdClass
                     $val        = $attr->getArguments()[0] ?? null;
                     $attr_void  = ['priKey', 'hide', 'required', 'trim'];
                     $attr_arg   = [
-                        'type', 'desc',
-                        'min', 'max',
-                        'minlength', 'maxlength',
-                        'lessThan', 'lessEqThan',
-                        'greaterThan', 'greaterEqThan',
+                        'type',         'desc',
+                        'min',          'max',
+                        'minlength',    'maxlength',
+                        'lessThan',     'lessEqThan',
+                        'greaterThan',  'greaterEqThan',
                     ];
 
                     if ( in_array( $name, $attr_void ) )
@@ -422,7 +422,7 @@ class DTO extends \StdClass
         if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
             static::captureColumns();
 
-        return static::$priKey ?? 'id';
+        return self::$priKeys[ $class ] ?? 'id';
     }
 
     /**
