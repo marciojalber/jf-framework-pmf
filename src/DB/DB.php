@@ -111,6 +111,7 @@ class DB
 
         $instance               = new self();
         $instance->schemaName   = $schema_name;
+        $opts                   = (object) $opts;
 
         $env                    = !empty( self::$forceENV[ $schema_name ] ) && self::$forceENV[ $schema_name ] != 'prod'
             ? self::$forceENV[ $schema_name ]
@@ -129,7 +130,7 @@ class DB
                 $schema_name
             );
 
-            if ( !empty( $opts[ 'disableException' ] ) )
+            if ( !empty( $opts->disableException ) )
                 return null;
 
             throw new Error( $msg );
@@ -146,10 +147,10 @@ class DB
             \PDO::ATTR_PERSISTENT       => false,
         ];
 
-        if ( isset( $opts[ 'timeout' ] ) )
+        if ( isset( $opts->timeout ) )
         {
-            $opts[ \PDO::ATTR_TIMEOUT ] = $opts[ 'timeout' ];
-            $opts[ \PDO::ATTR_ERRMODE ] = \PDO::ERRMODE_EXCEPTION;
+            $opts->{\PDO::ATTR_TIMEOUT} = $opts->timeout;
+            $opts->{\PDO::ATTR_ERRMODE} = \PDO::ERRMODE_EXCEPTION;
         }
 
         try {
@@ -373,9 +374,7 @@ class DB
     public static function getFetchStyle( $opts )
     {
         if ( is_bool( $opts ) )
-        {
             return \PDO::FETCH_ASSOC;
-        }
 
         if ( isset( $opts[ 'class' ] ) && class_exists( $opts[ 'class' ] ) )
         {

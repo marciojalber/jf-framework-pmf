@@ -23,9 +23,7 @@ class ControllerParser
     public static function controller( $validate = false )
     {
         if ( !self::$controller )
-        {
             self::parseRoute();
-        }
 
         if ( $validate )
         {
