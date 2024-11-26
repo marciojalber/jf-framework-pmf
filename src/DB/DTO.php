@@ -160,8 +160,8 @@ class DTO extends \StdClass
         }
 
         $types                  = [
-            'str', 'name', 'email',
-            'bit', 'int', 'float',
+            'str',  'name',     'email',
+            'bit',  'int',      'float',
             'date', 'datetime',
         ];
         $cols                   = $ref_class->getProperties();
@@ -177,6 +177,7 @@ class DTO extends \StdClass
             $columns[ $col->name ]  = (object) [
                 'desc'              => $col->name,
             ];
+            $column                 = &$columns[ $col->name ];
             
             if ( $attrs )
             {
@@ -186,33 +187,33 @@ class DTO extends \StdClass
                     $val        = $attr->getArguments()[0] ?? null;
                     $attr_void  = ['priKey', 'hide', 'required', 'trim'];
                     $attr_arg   = [
-                        'type', 'desc',
-                        'min', 'max',
-                        'minlength', 'maxlength',
-                        'lessThan', 'lessEqThan',
-                        'greaterThan', 'greaterEqThan',
+                        'type',         'desc',
+                        'min',          'max',
+                        'minlength',    'maxlength',
+                        'lessThan',     'lessEqThan',
+                        'greaterThan',  'greaterEqThan',
                     ];
 
                     if ( in_array( $name, $attr_void ) )
-                        $columns[ $col->name ]->$name = 1;
+                        $column->$name = 1;
 
                     if ( in_array( $name, $attr_arg ) )
-                        $columns[ $col->name ]->$name = $val;
+                        $column->$name = $val;
                 }
 
-                if ( !empty( $columns[ $col->name ]->priKey ) )
+                if ( !empty( $column->priKey ) )
                     self::$priKeys[ $class ]    = $col->name;
 
-                if ( !empty( $columns[ $col->name ]->hide ) )
+                if ( !empty( $column->hide ) )
                     self::$hides[ $class ][]    = $col->name;
             }
 
             $label = $class . '.' . $col->name;
 
-            if ( empty( $columns[ $col->name ]->type ) )
+            if ( empty( $column->type ) )
                 throw new Warning( "Nenhum tipo de dado definido para [$label]." );
 
-            if ( !in_array( $columns[ $col->name ]->type, $types ) )
+            if ( !in_array( $column->type, $types ) )
                 throw new Warning( "Tipo de dado definido para [$label] é inválido." );
         }
         
@@ -552,7 +553,8 @@ class DTO extends \StdClass
             static::captureColumns();
 
         $record_is_saved            = $this->_status == 'saved';
-        $column_exists              = array_key_exists( $key, static::$columns );
+        $class                      = get_called_class();
+        $column_exists              = array_key_exists( $key, $class::structure() );
         $value_changed              = array_key_exists( $key, $this->_changed );
 
         if ( $record_is_saved && $column_exists && !$value_changed )
@@ -578,7 +580,7 @@ class DTO extends \StdClass
         if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
             static::captureColumns();
 
-        $data   = array_intersect_key( $data, static::$columns );
+        $data   = array_intersect_key( $data, $class::structure() );
 
         return (object) $data;
     }
@@ -588,20 +590,21 @@ class DTO extends \StdClass
      */
     public function filter()
     {
-        $data   = (array) $this;
-        $record = new static();
-
-        $class  =  get_called_class();
+        $data       = (array) $this;
+        $record     = new static();
+        $class      =  get_called_class();
 
         if ( !static::$columns && !isset( self::$dtoColumns[ $class ] ) )
             static::captureColumns();
+
+        $columns    = $class::structure();
         
         array_walk( $data, function( $value, $key ) use ( $record )
         {
             if ( in_array( $key, static::$hide ) )
                 return;
 
-            if ( !array_key_exists( $key, static::$columns ) )
+            if ( !array_key_exists( $key, $columns ) )
                 return;
 
             $record->$key = $value;

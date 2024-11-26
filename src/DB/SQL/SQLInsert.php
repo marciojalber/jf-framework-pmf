@@ -77,7 +77,7 @@ class SQLInsert extends SQLBuilder
 
         $id     = $db->insertId();
 
-        return $id
+        return !empty( $id )
             ? $id
             : $this->values[ $pk ];
     }
