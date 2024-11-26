@@ -162,7 +162,7 @@ class DTO extends \StdClass
         $types          = [
             'str',  'name',     'email',
             'bit',  'int',      'float',
-            'date', 'datetime',
+            'date', 'datetime', 'time',
         ];
         $cols       = $ref_class->getProperties();
         $columns    = [];
@@ -215,8 +215,6 @@ class DTO extends \StdClass
 
             if ( !in_array( $column->type, $types ) )
                 throw new Warning( "Tipo de dado definido para [$label] é inválido." );
-            
-            $column                 = null;
         }
         
         static::$dtoColumns[ $class ] = $columns;
@@ -249,6 +247,8 @@ class DTO extends \StdClass
         $props          = static::structure();
         $date_pattern   = '/^\d{4}-\d{2}-\d{2}$/';
         $dt_pattern     = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+        $time_pattern   = '/^\d{2}:\d{2}:\d{2}$/';
+        // print_r( $props );
         
         foreach ( $props as $key => $prop )
         {
@@ -358,20 +358,20 @@ class DTO extends \StdClass
             if ( $prop->type == 'date' )
             {
                 if ( !preg_match( $date_pattern, $val ) )
-                    throw new Warning( "O valor informado para [$label] não é uma data." );
+                    throw new Warning( "O valor informado para [$label] não é uma data válida." );
 
                 $year   = substr( $val, 0, 4 );
                 $month  = substr( $val, 5, 2 );
                 $date   = substr( $val, -2 );
                 
                 if ( !checkdate( $month, $date, $year ) )
-                    throw new Warning( "O valor informado para [$label] não é uma data." );
+                    throw new Warning( "O valor informado para [$label] não é uma data válida." );
             }
 
             if ( $prop->type == 'datetime' )
             {
                 if ( !preg_match( $dt_pattern, $val ) )
-                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora válida." );
 
                 $year   = substr( $val, 0, 4 );
                 $month  = substr( $val, 5, 2 );
@@ -381,16 +381,35 @@ class DTO extends \StdClass
                 $seg    = substr( $val, -2 );
                 
                 if ( !checkdate( $month, $date, $year ) )
-                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora válida." );
                 
                 if ( $hour < 0 || $hour > 23 )
-                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora válida." );
                 
                 if ( $min < 0 || $min > 59 )
-                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora válida." );
                 
                 if ( $seg < 0 || $seg > 59 )
-                    throw new Warning( "O valor informado para [$label] não é uma data/hora." );
+                    throw new Warning( "O valor informado para [$label] não é uma data/hora válida." );
+            }
+
+            if ( $prop->type == 'time' )
+            {
+                if ( !preg_match( $time_pattern, $val ) )
+                    throw new Warning( "O valor informado para [$label] não é uma hora válida." );
+
+                $hour   = substr( $val, 11, 2 );
+                $min    = substr( $val, 14, 2 );
+                $seg    = substr( $val, -2 );
+                
+                if ( $hour < 0 || $hour > 23 )
+                    throw new Warning( "O valor informado para [$label] não é uma hora." );
+                
+                if ( $min < 0 || $min > 59 )
+                    throw new Warning( "O valor informado para [$label] não é uma hora." );
+                
+                if ( $seg < 0 || $seg > 59 )
+                    throw new Warning( "O valor informado para [$label] não é uma hora." );
             }
         }
     }
