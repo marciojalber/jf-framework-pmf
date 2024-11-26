@@ -159,14 +159,14 @@ class DTO extends \StdClass
                 static::$tables[ $class ]   = $val;
         }
 
-        $types          = [
+        $types                  = [
             'str',  'name',     'email',
             'bit',  'int',      'float',
             'date', 'datetime', 'time',
         ];
-        $cols       = $ref_class->getProperties();
-        $columns    = [];
-        self::$hides[ $class ] = [];
+        $cols                   = $ref_class->getProperties();
+        $columns                = [];
+        self::$hides[ $class ]  = [];
 
         foreach ( $cols as $col )
         {
@@ -208,7 +208,7 @@ class DTO extends \StdClass
                     self::$hides[ $class ][]    = $col->name;
             }
 
-            $label = $column->desc;
+            $label = $class . '.' . $col->name;
 
             if ( empty( $column->type ) )
                 throw new Warning( "Nenhum tipo de dado definido para [$label]." );
