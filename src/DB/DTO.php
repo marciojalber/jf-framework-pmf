@@ -160,7 +160,7 @@ class DTO extends \StdClass
         }
 
         $types                  = [
-            'str',  'name',     'email',
+            'str',  'email',
             'bit',  'int',      'float',
             'date', 'datetime', 'time',
         ];
@@ -234,7 +234,7 @@ class DTO extends \StdClass
             if ( $val === null || $val === '' )
                 continue;
 
-            if ( $prop->type == 'name' )
+            if ( $prop->type == 'str' && !empty( $prop->trim ) )
                 $this->$key = preg_replace( '@[\s\t]+@', ' ', trim( $this->$key ) );
         }
     }
