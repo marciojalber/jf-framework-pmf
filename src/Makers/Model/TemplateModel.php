@@ -9,7 +9,7 @@ namespace $ns;
  */
 #[schema( '$_schema' )]
 #[table( '$_table' )]
-class $classname extends \App\DTO\DTO
+class $classname extends \JF\DB\DTO
 {
     use $traitname;
 

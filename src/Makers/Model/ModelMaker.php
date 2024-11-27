@@ -475,6 +475,10 @@ class ModelMaker
         {
             $key                    = $pri_keys[0];
             $props[ $key ]->priKey  = 1;
+
+            if ( isset( $props[ $key ]->required ) )
+                unset( $props[ $key ]->required );
+
             return;
         }
 
@@ -482,6 +486,10 @@ class ModelMaker
         {
             $key                    = $uni_keys[0];
             $props[ $key ]->priKey  = 1;
+
+            if ( isset( $props[ $key ]->required ) )
+                unset( $props[ $key ]->required );
+            
             return;
         }
 
@@ -489,6 +497,9 @@ class ModelMaker
         {
             $key                    = $auto_inc;
             $props[ $key ]->priKey  = 1;
+            
+            if ( isset( $props[ $key ]->required ) )
+                unset( $props[ $key ]->required );
         }
     }
 
@@ -533,25 +544,37 @@ class ModelMaker
             
             foreach ( $props as $prop => $val )
             {
+                if ( $prop == 'default' )
+                    continue;
+                
                 if ( $prop == 'collection' )
                     foreach ( $val as $item )
                         $col[] = "    #[$item]";
                 
                 elseif ( in_array( $prop, $void_props ) )
-                    $col[] = "    #[$prop]";
+                    $col[]  = "    #[$prop]";
                 
                 elseif ( is_numeric( $val ) || $prop == 'opts' )
-                    $col[] = '    #[' . $prop . "($val)]";
+                    $col[]  = '    #[' . $prop . "($val)]";
 
                 else
-                    $col[] = '    #[' . $prop . "('$val')]";
+                    $col[]  = '    #[' . $prop . "('$val')]";
             }
 
-            $col[]  = "    public $$colname;";
-            $cols[] = implode( PHP_EOL, $col );
+            $default        = 'null';
+
+            if ( isset( $props->default ) )
+            {
+                $default    = is_numeric( $props->default )
+                    ? $props->default
+                    : "'" . $props->default . "'";
+            }
+
+            $col[]          = "    public $$colname = $default;";
+            $cols[]         = implode( PHP_EOL, $col );
         }
 
-        $cols       = implode( PHP_EOL . PHP_EOL, $cols );
+        $cols               = implode( PHP_EOL . PHP_EOL, $cols );
 
         return $cols;
     }
