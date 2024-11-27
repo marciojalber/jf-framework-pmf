@@ -37,6 +37,11 @@ class ModelMaker
     protected $tableColumns;
 
     /**
+     * Checks da tabela.
+     */
+    protected $tableChecks;
+
+    /**
      * Estrutura das propriedades do DTO.
      */
     protected $props    = [];
@@ -113,12 +118,16 @@ class ModelMaker
     {
         $this->getTableComment();
         $this->getTableInfos();
+        $this->getTableChecks();
         $this->fillProps();
         // $this->fillColumns();
 
         $ns         = self::getNSFromSchema( $this->schema, $this->table );
         $name       = self::getNameFromTable( $this->table );
         $classname  = $name . '__Model';
+        $classname  .= isset( $this->opts[ 'modelSufix' ] )
+            ? $name . $this->opts[ 'modelSufix' ]
+            : $name . '__Model';
         $traitname  = $name . '__Tasks';
         $props      = $this->prepareProps();
         // $cols       = $this->prepareColumns();
@@ -187,8 +196,8 @@ class ModelMaker
         $sql                = "
             SELECT  *
             FROM    `information_schema`.`COLUMNS`
-            WHERE   `TABLE_SCHEMA`   = '{$this->config->dbname}'
-                    AND `TABLE_NAME` = '{$this->table}'
+            WHERE   `TABLE_SCHEMA`      = '{$this->config->dbname}'
+                    AND `TABLE_NAME`    = '{$this->table}'
         ";
         $this->tableColumns = DB::instance( $this->schema )
             ->execute( $sql )
@@ -198,6 +207,36 @@ class ModelMaker
             return;
 
         throw new \Exception( "Nenhuma informação encontrada para a tabela [$this->table] no banco [$this->config->dbname]." );
+    }
+
+    /**
+     * Obtém os checks da tabela.
+     */
+    protected function getTableChecks()
+    {
+        $sql                = "
+            SELECT  `CHECK_CLAUSE`      `clause`
+            FROM    `information_schema`.`CHECK_CONSTRAINTS`
+            WHERE   `CONSTRAINT_SCHEMA` = '{$this->config->dbname}'
+                    AND `TABLE_NAME`    = '{$this->table}'
+        ";
+        $result     = DB::instance( $this->schema )
+            ->execute( $sql )
+            ->all();
+
+        if ( !$result )
+            return;
+
+        $this->tableChecks = (object) [];
+
+        foreach ( $result as $item )
+        {
+            $parts  = preg_split( '@ in @i', $item[ 'clause' ] );
+            $key    = preg_replace( '@`@i', '', $parts[0] );
+            $opts   = preg_replace( '@\( *\'| *\'\)@i', '', $parts[1] );
+            $opts   = preg_split( "@', *'@", $opts );
+            $this->tableChecks->$key = $opts;
+        }
     }
 
     /**
@@ -232,7 +271,14 @@ class ModelMaker
             'text'          => 'str',
             'mediumtext'    => 'str',
             'longtext'      => 'str',
+            'set'           => 'str',
+            'enum'          => 'str',
         ];
+
+        $auto_inc   = null;
+        $pri_keys   = [];
+        $uni_keys   = [];
+        $props      = &$this->props;
 
         foreach ( $this->tableColumns as $data )
         {
@@ -258,10 +304,62 @@ class ModelMaker
             if ( strpos( $data->COLUMN_TYPE, 'unsigned' ) )
                 $prop->unsigned     = 1;
 
-            if ( $data->COLUMN_KEY == 'PRI' )
-                $prop->priKey       = 1;
+            if ( in_array( $data->DATA_TYPE, ['enum', 'set'] ) )
+            {
+                $prop->opts         = preg_replace(
+                    "@^enum\( *\'|^set\( *\'|\' *\)$@i",
+                    '',
+                    $data->COLUMN_TYPE
+                );
+                $prop->opts         = preg_split( "@', *'@", $prop->opts );
+            }
+
+            $opts                   = isset( $this->tableChecks->$name )
+                ? $this->tableChecks->$name
+                : null;
+
+            if ( isset( $opts ) && empty( $prop->opts ) )
+                $prop->opts         = [];
             
-            $this->props[ $name ] = $prop;
+            if ( isset( $opts ) )
+            {
+                $prop->opts         = array_merge( $opts, $prop->opts );
+                $prop->opts         = array_unique( $prop->opts );
+            }
+            
+            if ( !empty( $prop->opts ) )
+                $prop->opts         = "['" . implode( "','", $prop->opts ) . "']";
+
+            if ( $data->EXTRA == 'auto_increment' )
+                $auto_inc           = $name;
+
+            if ( $data->COLUMN_KEY == 'PRI' )
+                $pri_keys[]         = $name;
+
+            if ( $data->COLUMN_KEY == 'PRI' )
+                $uni_keys[]         = $name;
+            
+            $props[ $name ]         = $prop;
+        }
+
+        if ( count( $pri_keys ) == 1 )
+        {
+            $key                    = $pri_keys[0];
+            $props[ $key ]->priKey  = 1;
+            return;
+        }
+
+        if ( count( $uni_keys ) == 1 )
+        {
+            $key                    = $uni_keys[0];
+            $props[ $key ]->priKey  = 1;
+            return;
+        }
+
+        if ( $auto_inc )
+        {
+            $key                    = $auto_inc;
+            $props[ $key ]->priKey  = 1;
         }
     }
 
@@ -309,11 +407,11 @@ class ModelMaker
                 if ( in_array( $prop, $void_props ) )
                     $col[] = "    #[$prop]";
                 
-                elseif ( is_numeric( $val ) )
-                    $col[] = '    #[' . $prop . "( $val )]";
+                elseif ( is_numeric( $val ) || $prop == 'opts' )
+                    $col[] = '    #[' . $prop . "($val)]";
 
                 else
-                    $col[] = '    #[' . $prop . "( '$val' )]";
+                    $col[] = '    #[' . $prop . "('$val')]";
             }
 
             $col[]  = "    public $$colname;";
