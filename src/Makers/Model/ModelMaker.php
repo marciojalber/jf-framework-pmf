@@ -17,14 +17,19 @@ class ModelMaker
     protected $schema;
 
     /**
+     * Nome da tabela.
+     */
+    protected $table;
+
+    /**
      * Configurações de conexão.
      */
     protected $config;
 
     /**
-     * Nome da tabela.
+     * Opções informadas para criação de models.
      */
-    protected $table;
+    protected $opts;
 
     /**
      * Comentários da tabela.
@@ -42,19 +47,34 @@ class ModelMaker
     protected $tableChecks;
 
     /**
+     * Checks da tabela.
+     */
+    protected $tableLessGreater = [];
+
+    /**
+     * Patterns da tabela.
+     */
+    protected $tablePatterns    = [];
+
+    /**
+     * Maxlength da tabela.
+     */
+    protected $tableMinlength   = [];
+
+    /**
      * Estrutura das propriedades do DTO.
      */
-    protected $props    = [];
+    protected $props            = [];
 
     /**
      * Propriedades do DTO.
      */
-    protected $cols     = '';
+    protected $cols             = '';
 
     /**
      * Chave primária.
      */
-    protected $priKey   = 'id';
+    protected $priKey           = 'id';
 
     /**
      * Retorna o nome do DTO a partir do nome da tabela.
@@ -92,23 +112,23 @@ class ModelMaker
     /**
      * Método construtor.
      */
-    public function __construct( $schema, $table, $config = [] )
+    public function __construct( $schema, $table, $opts = [] )
     {
-        if ( !$config && !$schema )
+        if ( !$schema )
             throw new \Exception( "Esquema de acesso ao banco-de-dados não informado." );
-        
-        if ( !$config )
-            $config = Config::get( 'db.schemas.' . $schema );
-
-        if ( !$config )
-            throw new \Exception( "Esquema de acesso ao banco-de-dados [$schema] inválido." );
             
         if ( !$table )
             throw new \Exception( "Tabela do banco-de-dados não informado." );
             
-        $this->schema   = $schema;
-        $this->config   = $config;
-        $this->table    = $table;
+        $this->schema           = $schema;
+        $this->table            = $table;
+        $this->opts             = $opts;
+        $this->config           = DB::instance( $this->schema )->config();
+        
+        $this->tableChecks      = (object) [];
+        $this->tableLessGreater = (object) [];
+        $this->tablePatterns    = (object) [];
+        $this->tableMinlength   = (object) [];
     }
 
     /**
@@ -124,8 +144,7 @@ class ModelMaker
 
         $ns         = self::getNSFromSchema( $this->schema, $this->table );
         $name       = self::getNameFromTable( $this->table );
-        $classname  = $name . '__Model';
-        $classname  .= isset( $this->opts[ 'modelSufix' ] )
+        $classname  = isset( $this->opts[ 'modelSufix' ] )
             ? $name . $this->opts[ 'modelSufix' ]
             : $name . '__Model';
         $traitname  = $name . '__Tasks';
@@ -227,16 +246,104 @@ class ModelMaker
         if ( !$result )
             return;
 
-        $this->tableChecks = (object) [];
+        $in_pattern     = '@`in \(@i';
+        $len_pattern    = '@^([A-Za-z]+_)?LENGTH\(.*?\) *>=@i';
+        $lg_pattern     = '@` (>|>=|<|<=) `@';
+        $regex_pattern  = '@`.*?` REGEXP@i';
 
         foreach ( $result as $item )
         {
-            $parts  = preg_split( '@ in @i', $item[ 'clause' ] );
-            $key    = preg_replace( '@`@i', '', $parts[0] );
-            $opts   = preg_replace( '@\( *\'| *\'\)@i', '', $parts[1] );
-            $opts   = preg_split( "@', *'@", $opts );
-            $this->tableChecks->$key = $opts;
+            if ( preg_match( $in_pattern, $item[ 'clause' ] ) )
+                $this->captureOpts( $item[ 'clause' ] );
+
+            // `email` REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+
+            if ( preg_match( $len_pattern, $item[ 'clause' ] ) )
+                $this->captureMinlength( $item[ 'clause' ] );
+
+            if ( preg_match( $regex_pattern, $item[ 'clause' ] ) )
+                $this->capturePattern( $item[ 'clause' ] );
+
+            if ( preg_match( $lg_pattern, $item[ 'clause' ] ) )
+                $this->captureLessGreater( $item[ 'clause' ] );
         }
+    }
+
+    /**
+     * Captura as opções de entrada.
+     */
+    protected function captureOpts( $val )
+    {
+        $parts  = preg_split( '@ in @i', $val );
+        $key    = preg_replace( '@`@i', '', $parts[0] );
+        $opts   = preg_replace( '@\( *\'| *\'\)@i', '', $parts[1] );
+        $opts   = preg_split( "@', *'@", $opts );
+        
+        $this->tableChecks->$key = $opts;
+    }
+
+    /**
+     * Captura o comprimento mínimo de caracteres.
+     */
+    protected function captureMinlength( $val )
+    {
+        $val    = preg_replace(
+            '@^([A-Za-z]+_)?LENGTH\(`(.*?)`\) *>= *`?(.*)`?@i',
+            '$2|$3',
+            $val
+        );
+        $parts  = explode( '|', $val );
+        $key    = $parts[0];
+        $val    = $parts[1];
+        
+        $this->tableMinlength->$key = $val;
+    }
+
+    /**
+     * Captura o padrão de expressão regular.
+     */
+    protected function capturePattern( $val )
+    {
+        $val    = preg_replace(
+            '@`(.*?)` REGEXP \'(.*)\'@i',
+            '$1|$2',
+            $val
+        );
+        $parts  = explode( '|', $val );
+        $key    = $parts[0];
+        $val    = $parts[1];
+        
+        $this->tablePatterns->$key = $val;
+    }
+
+    /**
+     * Preenche as propriedades do DTO com os dados da tabela.
+     */
+    protected function captureLessGreater( $val )
+    {
+        $op     ??= preg_match( '@` > `@', $val )
+            ? 'greaterThan'
+            : null;
+        $op     ??= preg_match( '@` >= `@', $val )
+            ? 'greaterEqThan'
+            : null;
+        $op     ??= preg_match( '@` < `@', $val )
+            ? 'lessThan'
+            : null;
+        $op     ??= preg_match( '@` <= `@', $val )
+            ? 'lessEqThan'
+            : null;
+        $parts  = preg_split(
+            '@` (>|>=|<|<=) `@',
+            preg_replace( '@^`|`$@', '', $val )
+        );
+        $key    = $parts[0];
+        $target = $parts[1];
+        
+        if ( empty( $this->tableLessGreater->$key ) )
+            $this->tableLessGreater->$key = [];
+
+        $this->tableLessGreater->$key[] = [ $op, $target ];
     }
 
     /**
@@ -284,7 +391,9 @@ class ModelMaker
         {
             $data   = (object) $data;
             $name   = $data->COLUMN_NAME;
-            $prop   = (object) [];
+            $prop   = (object) [
+                'collection' => [],
+            ];
 
             if ( $data->COLUMN_COMMENT )
                 $prop->desc         = $data->COLUMN_COMMENT;
@@ -338,6 +447,26 @@ class ModelMaker
 
             if ( $data->COLUMN_KEY == 'PRI' )
                 $uni_keys[]         = $name;
+
+            if ( !empty( $this->tableLessGreater->$name ) )
+            {
+                foreach ( $this->tableLessGreater->$name as $val )
+                    $prop->collection[] = "{$val[0]}( '$val[1]' )";
+            }
+
+            if ( !empty( $this->tableMinlength->$name ) )
+            {
+                $val                = $this->tableMinlength->$name;
+                $prop->collection[] = is_numeric( $val )
+                    ? "minlength( $val )"
+                    : "minlength( '$val' )";
+            }
+
+            if ( !empty( $this->tablePatterns->$name ) )
+            {
+                $val                = $this->tablePatterns->$name;
+                $prop->collection[] = "pattern( '$val' )";
+            }
             
             $props[ $name ]         = $prop;
         }
@@ -395,16 +524,20 @@ class ModelMaker
      */
     protected function prepareProps()
     {
-        $cols       = [];
-        $void_props = [ 'priKey', 'required', 'unsigned' ];
-
+        $cols           = [];
+        $void_props     = [ 'priKey', 'required', 'unsigned' ];
+        
         foreach ( $this->props as $colname => $props )
         {
-            $col    = [];
+            $col        = [];
             
             foreach ( $props as $prop => $val )
             {
-                if ( in_array( $prop, $void_props ) )
+                if ( $prop == 'collection' )
+                    foreach ( $val as $item )
+                        $col[] = "    #[$item]";
+                
+                elseif ( in_array( $prop, $void_props ) )
                     $col[] = "    #[$prop]";
                 
                 elseif ( is_numeric( $val ) || $prop == 'opts' )
