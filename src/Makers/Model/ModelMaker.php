@@ -4,7 +4,8 @@ namespace JF\Makers\Model;
 
 use JF\Config;
 use JF\DB\DB;
-use JF\System\Dir;
+use JF\FileSystem\Dir;
+use JF\Exceptions\ErrorException as Error;
 
 /**
  * Criador de DTOs.
@@ -77,6 +78,11 @@ class ModelMaker
     protected $priKey           = 'id';
 
     /**
+     * Resultado da criação.
+     */
+    protected $result           = [];
+
+    /**
      * Retorna o nome do DTO a partir do nome da tabela.
      */
     public static function getNSFromSchema( $schema, $table )
@@ -104,9 +110,9 @@ class ModelMaker
     /**
      * Instancia a classe.
      */
-    public static function init( $schema, $table, $config = [] )
+    public static function init( $schema, $table, $opts = [] )
     {
-        return new self( $schema, $table, $config );
+        return new self( $schema, $table, $opts );
     }
 
     /**
@@ -115,11 +121,11 @@ class ModelMaker
     public function __construct( $schema, $table, $opts = [] )
     {
         if ( !$schema )
-            throw new \Exception( "Esquema de acesso ao banco-de-dados não informado." );
+            throw new Error( "Esquema de acesso ao banco-de-dados não informado." );
             
-        if ( !$table )
-            throw new \Exception( "Tabela do banco-de-dados não informado." );
-            
+        if ( !$table && empty( $opts[ 'allTables' ] ) )
+            throw new Error( "Tabela do banco-de-dados não informado." );
+        
         $this->schema           = $schema;
         $this->table            = $table;
         $this->opts             = $opts;
@@ -136,53 +142,42 @@ class ModelMaker
      */
     public function create( $dirname = null )
     {
-        $this->getTableComment();
-        $this->getTableInfos();
-        $this->getTableChecks();
-        $this->fillProps();
-        // $this->fillColumns();
+        $tables = $this->getTables();
 
-        $ns         = self::getNSFromSchema( $this->schema, $this->table );
-        $name       = self::getNameFromTable( $this->table );
-        $classname  = isset( $this->opts[ 'modelSufix' ] )
-            ? $name . $this->opts[ 'modelSufix' ]
-            : $name . '__Model';
-        $traitname  = $name . '__Tasks';
-        $props      = $this->prepareProps();
-        // $cols       = $this->prepareColumns();
-        $hoje       = date( 'd/m/Y, à\s H:i:s' );
-        $dirname    = !$dirname
-            ? DIR_BASE . '/' . str_replace( '\\', '/', $ns )
-            : $dirname;
-        $classfile  = $dirname . '/' . $classname . '.php';
-        $traitfile  = $dirname . '/' . $traitname . '.php';
-        $class      = file_get_contents( __DIR__ . '/TemplateModel.php' );
-        $class      = str_replace(
-            ['$ns', '$_table', '$hoje', '$classname', '$traitname', '$_schema', '$_props'],
-            [$ns, $this->table, $hoje, $classname, $traitname, $this->schema, $props, $this->priKey, $this->label],
-            $class
-        );
-        $trait      = file_get_contents( __DIR__ . '/TemplateTasks.php' );
-        $trait      = str_replace(
-            ['$ns', '$dto', '$hoje', '$traitname'],
-            [$ns, $classname, $hoje, $traitname],
-            $trait
-        );
+        foreach ( $tables as $table )
+        {
+            $this->table = $table;
 
-        $paths      = !file_exists( $dirname )
-            ? (int) !!Dir::makeDir( $dirname )
-            : 0;
+            $this->getTableComment();
+            $this->getTableInfos();
+            $this->getTableChecks();
+            $this->fillProps();
+            $this->convertProps();
+            $this->makeFiles( $dirname );
+        }
 
-        $files      = (int) !!file_put_contents( $classfile, $class );
-        $files     += !file_exists( $traitfile )
-            ? (int) !!file_put_contents( $traitfile, $trait )
-            : 0;
+        return $this->result;
+    }
 
-        return (object) [
-            'filetime'  => filemtime( $classfile ),
-            'paths'     => $paths,
-            'files'     => $files,
-        ];
+    /**
+     * Obtém as tabelas para analisar.
+     */
+    protected function getTables()
+    {
+        if ( empty( $this->opts[ 'allTables' ] ) )
+            return [$this->table];
+
+        $sql        = "
+            SELECT  `TABLE_NAME` `table`
+            FROM    `information_schema`.`TABLES`
+            WHERE   `TABLE_SCHEMA`      = '{$this->config->dbname}'
+        ";
+        $tables     = DB::instance( $this->schema )
+            ->execute( $sql )
+            ->indexBy( 'table' )
+            ->all();
+
+        return array_keys( $tables );
     }
 
     /**
@@ -196,7 +191,7 @@ class ModelMaker
             WHERE   `TABLE_SCHEMA`      = '{$this->config->dbname}'
                     AND `TABLE_NAME`    = '{$this->table}'
         ";
-        $table_comment  = DB::instance( $this->schema, $this->config )
+        $table_comment  = DB::instance( $this->schema )
             ->execute( $sql )
             ->one();
 
@@ -382,10 +377,11 @@ class ModelMaker
             'enum'          => 'str',
         ];
 
-        $auto_inc   = null;
-        $pri_keys   = [];
-        $uni_keys   = [];
-        $props      = &$this->props;
+        $auto_inc       = null;
+        $pri_keys       = [];
+        $uni_keys       = [];
+        $this->props    = [];
+        $props          = &$this->props;
 
         foreach ( $this->tableColumns as $data )
         {
@@ -504,36 +500,9 @@ class ModelMaker
     }
 
     /**
-     * Prepara a propriedades $cols para injetar na trait.
+     * Converte as propriedades em $cols para injetar no Model.
      */
-    protected function fillColumns()
-    {
-        foreach ( $this->props as $prop => $data )
-        {
-            $default        = 'null';
-
-            if ( isset( $data->default ) )
-            {
-                $default    = is_numeric( $data->default )
-                    ? $data->default
-                    : "'" . $data->default . "'";
-            }
-
-            $col            = [];
-            $col[]          = "    ";
-            $col[]          = "    /**";
-            $col[]          = "     * {$data->desc}.";
-            $col[]          = "     */";
-            $col[]          = "    public $$prop = $default;";
-            $col[]          = "    ";
-            $this->cols    .= implode( PHP_EOL, $col );
-        }
-    }
-
-    /**
-     * Prepara a propriedades $cols para injetar na trait.
-     */
-    protected function prepareProps()
+    protected function convertProps()
     {
         $cols           = [];
         $void_props     = [ 'priKey', 'required', 'unsigned' ];
@@ -576,6 +545,53 @@ class ModelMaker
 
         $cols               = implode( PHP_EOL . PHP_EOL, $cols );
 
-        return $cols;
+        $this->props = $cols;
+    }
+
+    /**
+     * Cria os arquivos de Model e Trait.
+     */
+    protected function makeFiles( $dirname )
+    {
+        $ns         = self::getNSFromSchema( $this->schema, $this->table );
+        $name       = self::getNameFromTable( $this->table );
+        $classname  = isset( $this->opts[ 'modelSufix' ] )
+            ? $name . $this->opts[ 'modelSufix' ]
+            : $name . '__Model';
+        $traitname  = $name . '__Tasks';
+        // $cols       = $this->prepareColumns();
+        $hoje       = date( 'd/m/Y, à\s H:i:s' );
+        $dirname    = !$dirname
+            ? DIR_BASE . '/' . str_replace( '\\', '/', $ns )
+            : $dirname;
+        $classfile  = $dirname . '/' . $classname . '.php';
+        $traitfile  = $dirname . '/' . $traitname . '.php';
+        $class      = file_get_contents( __DIR__ . '/TemplateModel.php' );
+        $class      = str_replace(
+            ['$ns', '$_table', '$hoje', '$classname', '$traitname', '$_schema', '$_props'],
+            [$ns, $this->table, $hoje, $classname, $traitname, $this->schema, $this->props, $this->priKey, $this->label],
+            $class
+        );
+        $trait      = file_get_contents( __DIR__ . '/TemplateTasks.php' );
+        $trait      = str_replace(
+            ['$ns', '$dto', '$hoje', '$traitname'],
+            [$ns, $classname, $hoje, $traitname],
+            $trait
+        );
+
+        $paths      = !file_exists( $dirname )
+            ? (int) !!Dir::makeDir( $dirname )
+            : 0;
+
+        $files      = (int) !!file_put_contents( $classfile, $class );
+        $files     += !file_exists( $traitfile )
+            ? (int) !!file_put_contents( $traitfile, $trait )
+            : 0;
+
+        $this->result[] = (object) [
+            'filetime'  => filemtime( $classfile ),
+            'paths'     => $paths,
+            'files'     => $files,
+        ];
     }
 }

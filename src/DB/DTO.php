@@ -237,6 +237,8 @@ class DTO extends \StdClass
             if ( $prop->type == 'str' && !empty( $prop->trim ) )
                 $this->$key = preg_replace( '@[\s\t]+@', ' ', trim( $this->$key ) );
         }
+
+        return $this;
     }
 
     /**
@@ -412,6 +414,8 @@ class DTO extends \StdClass
                     throw new Warning( "O valor informado para [$label] não é uma hora." );
             }
         }
+
+        return $this;
     }
 
     /**
