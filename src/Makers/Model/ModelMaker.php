@@ -196,7 +196,7 @@ class ModelMaker
             ->one();
 
         if ( !$table_comment )
-            throw new \Exception( "Nenhuma informação encontrada para a tabela [$this->table] no banco [$this->config->dbname]." );
+            throw new \Exception( "Nenhuma informação encontrada para a tabela [{$this->table}] no banco [{$this->config->dbname}]." );
 
         $table_comment  = (object) $table_comment;
         $this->label    = lcfirst( $table_comment->comment );
@@ -477,7 +477,7 @@ class ModelMaker
 
             return;
         }
-
+        
         if ( count( $uni_keys ) == 1 )
         {
             $key                    = $uni_keys[0];
@@ -496,6 +496,19 @@ class ModelMaker
             
             if ( isset( $props[ $key ]->required ) )
                 unset( $props[ $key ]->required );
+
+            return;
+        }
+
+        if ( $pri_keys )
+        {
+            $key                    = $pri_keys[0];
+            $props[ $key ]->priKey  = 1;
+
+            if ( isset( $props[ $key ]->required ) )
+                unset( $props[ $key ]->required );
+
+            return;
         }
     }
 
@@ -577,7 +590,7 @@ class ModelMaker
             ['$ns', '$dto', '$hoje', '$traitname'],
             [$ns, $classname, $hoje, $traitname],
             $trait
-        );
+        ); //
 
         $paths      = !file_exists( $dirname )
             ? (int) !!Dir::makeDir( $dirname )
