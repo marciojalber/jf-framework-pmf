@@ -602,7 +602,7 @@ class ModelMaker
         }
 
         file_put_contents( $classfile, $class );
-        $files[]    = $classfile;
+        $makes[]     = $classfile;
 
         if ( !file_exists( $traitfile ) )
         {
@@ -612,11 +612,9 @@ class ModelMaker
 
         $this->result[] = (object) [
             'Model'     => $classname,
-            'make'      => $classname,
-            'paths'     => $paths
-                ? $dirname
+            'makes'     => $makes
+                ? $makes
                 : null,
-            'files'     => $files,
         ];
     }
 }
