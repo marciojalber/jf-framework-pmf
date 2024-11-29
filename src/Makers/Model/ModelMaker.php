@@ -251,8 +251,6 @@ class ModelMaker
             if ( preg_match( $in_pattern, $item[ 'clause' ] ) )
                 $this->captureOpts( $item[ 'clause' ] );
 
-            // `email` REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-
             if ( preg_match( $len_pattern, $item[ 'clause' ] ) )
                 $this->captureMinlength( $item[ 'clause' ] );
 
@@ -376,7 +374,7 @@ class ModelMaker
             'set'           => 'str',
             'enum'          => 'str',
         ];
-
+        $trimamble      = [ 'char', 'varchar', 'tinytext', 'set', 'enum' ];
         $auto_inc       = null;
         $pri_keys       = [];
         $uni_keys       = [];
@@ -408,6 +406,9 @@ class ModelMaker
 
             if ( strpos( $data->COLUMN_TYPE, 'unsigned' ) )
                 $prop->unsigned     = 1;
+
+            if ( in_array( $types[ $data->DATA_TYPE ], $trimamble ) )
+                $prop->trim         = 1;
 
             if ( in_array( $data->DATA_TYPE, ['enum', 'set'] ) )
             {
@@ -592,18 +593,29 @@ class ModelMaker
             $trait
         ); //
 
-        $paths      = !file_exists( $dirname )
-            ? (int) !!Dir::makeDir( $dirname )
-            : 0;
+        $makes      = [];
 
-        $files      = (int) !!file_put_contents( $classfile, $class );
-        $files     += !file_exists( $traitfile )
-            ? (int) !!file_put_contents( $traitfile, $trait )
-            : 0;
+        if ( !file_exists( $dirname ) )
+        {
+            Dir::makeDir( $dirname );
+            $makes[] = $dirname;
+        }
+
+        file_put_contents( $classfile, $class );
+        $files[]    = $classfile;
+
+        if ( !file_exists( $traitfile ) )
+        {
+            file_put_contents( $traitfile, $trait );
+            $makes[] = $traitfile;
+        }
 
         $this->result[] = (object) [
-            'filetime'  => filemtime( $classfile ),
-            'paths'     => $paths,
+            'Model'     => $classname,
+            'make'      => $classname,
+            'paths'     => $paths
+                ? $dirname
+                : null,
             'files'     => $files,
         ];
     }
