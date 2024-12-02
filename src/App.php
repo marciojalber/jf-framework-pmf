@@ -150,7 +150,7 @@ final class App
     private static function configPHPEnv( $tests_env = false )
     {
         // Configurações iniciais do PHP
-        ini_set( 'display_errors',          0 );
+        ini_set( 'display_errors',          1 );
         ini_set( 'display_startup_errors',  0 );
         ini_set( 'log_errors',              0 );
         ini_set( 'error_reporting',         E_ALL );
