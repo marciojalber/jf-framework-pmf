@@ -267,6 +267,9 @@ class DTO extends \StdClass
                 ? mb_strlen( $val )
                 : null;
 
+            if ( !empty( $prop->unsigned ) && $prop->min < 0 )
+                throw new Warning( "O valor de [$label] deve ser maior ou igual a 0." );
+
             if ( !empty( $prop->min ) && $prop->min > $val )
                 throw new Warning( "O valor de [$label] deve ser maior ou igual a [{$prop->min}]." );
 
@@ -351,7 +354,7 @@ class DTO extends \StdClass
                 throw new Warning( "Valor inválido informado para [$label]." );
 
             if ( $prop->type == 'int' )
-                if ( !( is_int( $val ) || is_string( $val ) && !preg_match( '@^-?\d+$@', $val ) ) )
+                if ( !( is_int( $val ) || is_string( $val ) && preg_match( '@^-?\d+$@', $val ) ) )
                     throw new Warning( "O valor informado para [$label] não é um número." );
 
             if ( $prop->type == 'float' && !is_numeric( $val ) )
