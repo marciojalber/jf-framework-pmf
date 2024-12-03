@@ -160,9 +160,6 @@ class Log
      */
     protected function makeLogText()
     {
-        if ( $this->dbTarget )
-            return;
-
         // Prepara o texto do log
         $log            = new IniMaker();
         $log->addSection( uniqid( '', true )                  );
@@ -197,9 +194,6 @@ class Log
      */
     protected function saveLogService()
     {
-        if ( $this->dbTarget )
-            return;
-
         // Se já salvou o log, não executa novo salvamento
         if ( $this->saved || !( defined( 'ROUTE' ) && !ROUTE ) )
             return;
@@ -232,13 +226,6 @@ class Log
      */
     protected function saveLogDate()
     {
-        if ( $this->dbTarget )
-            return;
-
-        // Se já salvou o log, não executa novo salvamento
-        if ( $this->saved )
-            return;
-
         // Prepara os possíveis caminhos do arquivo de log
         $year_path      = $this->logPath()
             . '/' . date( 'Y' );
