@@ -34,7 +34,9 @@ class Autodoc extends \StdClass
     public function run()
     {
         $this->lenbase  = strlen( DIR_SERVICES );
+        $pathdoc        = DIR_BASE . '/doc';
         
+        file_exists( $pathdoc ) || mkdir( $pathdoc );
         $this->clearDocPath( DIR_BASE . '/doc' );
         
         mkdir( DIR_BASE . '/doc/modules' );
@@ -117,11 +119,12 @@ class Autodoc extends \StdClass
                 if ( $name != 'userStory' )
                     continue;
 
-                $comment    = $ref->getDocComment();
-                $comment    = ClassDocParser::getDoc( $comment );
-                $content    = [];
-                $content[]  = "URL    : $route";
-                $content[]  = 'DESC   : '. $comment->desc;
+                $comment        = $ref->getDocComment();
+                $comment        = ClassDocParser::getDoc( $comment );
+                $content        = (object) [];
+                $content->url   = $route;
+                $content->desc  = $comment->desc;
+                $content->rules = [];
 
                 $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
                 $has_rules  = 0;
@@ -150,17 +153,11 @@ class Autodoc extends \StdClass
                         $docrule    = $ruleref->getDocComment();
                         $docrule    = ClassDocParser::getDoc( $docrule );
                         $ruleline   = preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
-                        $content[]  = !$i
-                            ? 'REGRAS : - ' . $ruleline
-                            : '       - ' . $ruleline;
+                        $content->rules[]  = $ruleline;
                     }
                 }
 
-                if ( !$has_rules )
-                    $content[]      = 'Nenhuma regra de negócio definida.';
-
-                $content                = implode( PHP_EOL, $content );
-                $this->doc[ $route ]    = $content;
+                $this->doc[ $route ] = $content;
             }
         }
     }
@@ -170,7 +167,7 @@ class Autodoc extends \StdClass
      */
     private function saveModules()
     {
-        $content = json_encode( $this->modules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+        $content = $this->jsonEncode( $this->modules );
         file_put_contents( DIR_BASE . '/doc/modules-list.json', $content );
 
         foreach ( $this->modules as $name => $module )
@@ -201,8 +198,19 @@ class Autodoc extends \StdClass
             }
 
             // $modpath .= '/' . substr( str_replace( '/', '-', substr( $path, 1 ) ), $discount );
-            $modpath .= '/' . str_replace( '/', '-', substr( $path, 1 ) );
-            file_put_contents( $modpath, $content );
+            $modpath .= '/' . str_replace( '/', '-', substr( $path, 1 ) ) . '.json';
+            file_put_contents( $modpath, $this->jsonEncode( $content ) );
         }
+    }
+
+    /**
+     * Codifica o conteúdo em formato JSON.
+     */
+    private function jsonEncode( $content )
+    {
+        return json_encode(
+            $content,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
     }
 }
