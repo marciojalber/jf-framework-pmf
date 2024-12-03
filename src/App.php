@@ -5,6 +5,7 @@ namespace JF;
 require_once( __DIR__ . '/Autoloader.php' );
 require_once( __DIR__ . '/Config.php' );
 
+use JF\Autodoc\Autodoc;
 use JF\Doc\DocParserFeature;
 use JF\Domain\Tester;
 use JF\FileSystem\Dir;
@@ -27,7 +28,7 @@ final class App
     /**
      * Inicia a aplicação.
      */
-    public static function executeTests( $dirbase = null )
+    public static function autodoc( $dirbase = null )
     {
         if ( self::$running )
             return;
@@ -37,6 +38,23 @@ final class App
         self::setInitialHeaders();
         self::defines( $dirbase, 1 );
         self::configPHPEnv( 1 );
+
+        Autodoc::init()->run();
+    }
+
+    /**
+     * Inicia a aplicação.
+     */
+    public static function executeTests( $dirbase = null )
+    {
+        if ( self::$running )
+            return;
+        
+        self::$running = true;
+
+        self::setInitialHeaders();
+        self::defines( $dirbase, 1 );
+        self::configPHPEnv();
         self::defineProductPaths();
         Env::setEnv();
         Router::basicDefines( 1 );
@@ -83,7 +101,7 @@ final class App
     private static function setInitialHeaders()
     {
         header( 'Content-Type: text/plain; charset=UTF-8' );
-        header( 'X-Powered-By: JF Framework/PHP 8.1 - https://github.com/marciojalber/jf-framework-php');
+        header( 'X-Powered-By: JF Framework/PHP 8.2 - https://github.com/marciojalber/jf-framework-php');
     }
 
     /**
@@ -108,9 +126,9 @@ final class App
             define( 'DIR_CONTROLLERS',      DIR_APP  . '/Controllers' );
             define( 'DIR_DOMAIN',           DIR_APP  . '/Domain' );
                 define( 'DIR_FEATURES',     DIR_DOMAIN . '/Features' );
-                define( 'DIR_SERVICES',     DIR_DOMAIN . '/Services' );
                 define( 'DIR_RULES',        DIR_DOMAIN . '/Rules' );
             define( 'DIR_ROUTINES',         DIR_APP  . '/Routines' );
+            define( 'DIR_SERVICES',     DIR_APP . '/Services' );
         define( 'DIR_CONFIG',               DIR_BASE . '/config' );
         define( 'DIR_MODELS',           DIR_APP  . '/Models' );
         define( 'DIR_TEMPLATES',        DIR_BASE . '/templates' );
@@ -147,10 +165,10 @@ final class App
     /**
      * Prepara o ambiente PHP.
      */
-    private static function configPHPEnv( $tests_env = false )
+    private static function configPHPEnv( $autodoc = 0 )
     {
         // Configurações iniciais do PHP
-        ini_set( 'display_errors',          0 );
+        ini_set( 'display_errors',          1 );
         ini_set( 'display_startup_errors',  0 );
         ini_set( 'log_errors',              0 );
         ini_set( 'error_reporting',         E_ALL );
@@ -158,7 +176,7 @@ final class App
 
         // Registra manipuladores
         Autoloader::register();
-        ErrorHandler::register();
+        $autodoc || ErrorHandler::register();
 
         // Outras operações de inicialização
         date_default_timezone_set( 'America/Sao_Paulo' );
