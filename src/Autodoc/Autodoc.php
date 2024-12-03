@@ -11,9 +11,14 @@ use JF\Exceptions\WarningException as Warning;
 class Autodoc extends \StdClass
 {
     /**
-     * Conteúdo do documento.
+     * Conteúdo da documentação.
      */
     protected $doc = [];
+
+    /**
+     * Módulos informados.
+     */
+    protected $modules = [];
 
     /**
      * Inicia uma instância do Autodoc.
@@ -28,19 +33,43 @@ class Autodoc extends \StdClass
      */
     public function run()
     {
-        $this->lenbase = strlen( DIR_SERVICES );
+        $this->lenbase  = strlen( DIR_SERVICES );
+        
+        $this->clearDocPath( DIR_BASE . '/doc' );
+        
+        mkdir( DIR_BASE . '/doc/modules' );
+        
         $this->parseServices( DIR_SERVICES );
-
-        $docfile    = DIR_SERVICES . '/user-stories.jf';
-        $separator  = str_repeat( '=', 100 );
-        $content    = implode( PHP_EOL . PHP_EOL . $separator . PHP_EOL . PHP_EOL, $this->doc );
-        file_put_contents( $docfile, $content );
+        $this->saveModules();
+        $this->saveContentFiles();
     }
 
     /**
      * Roda o Autodoc.
      */
-    public function parseServices( $path )
+    private function clearDocPath( $path )
+    {
+        $dir = new \FileSystemIterator( $path );
+
+        foreach ( $dir as $item )
+        {
+            $subpath = $dir->getPathname();
+            
+            if ( $dir->isDir() )
+            {
+                $this->clearDocPath( $subpath );
+                rmdir( $subpath );
+                continue;
+            }
+
+            unlink( $subpath );
+        }
+    }
+
+    /**
+     * Roda o Autodoc.
+     */
+    private function parseServices( $path )
     {
         $dir = new \FileSystemIterator( $path );
 
@@ -55,16 +84,26 @@ class Autodoc extends \StdClass
                 continue;
             }
 
+            $route      = substr( $subpath, $this->lenbase + 1 );
+            $classname  = 'App\\Services\\' . substr( $route, 0, -4 );
+            $route      = $filename == 'module'
+                ? substr( $route, 0, -7 )
+                : substr( $route, 0, -12 );
+            $docpath    = DIR_BASE . '/doc/modules/' . str_replace( '\\', '.', $route );
+            $route      = '/' . str_replace( '\\', '/', $route );
+            $route      = str_replace( '_', '-', $route );
+            $route      = strtolower( $route );
+
+            if ( $filename == 'module' )
+            {
+                $total  = count( $this->modules ) + 1;
+                $name   = 'module' . $total;
+                $this->modules[ $name ] = [$route, file_get_contents( $subpath )];
+            }
+
             if ( $filename != 'Service.php' )
                 continue;
             
-            $route      = substr( $subpath, $this->lenbase + 1, -4 );
-            $classname  = 'App\\Services\\' . $route;
-            $route      = '#' . substr( $route, 0, -8 );
-            $route      = str_replace( '\\', '.', $route );
-            $route      = str_replace( '_', '-', $route );
-            $route      = strtoupper( $route );
-
             if ( $classname == 'App\\Services\\Bi\\Dashboard\\Desempenho\\Totalizar\\Service' )
                 continue;
 
@@ -81,11 +120,9 @@ class Autodoc extends \StdClass
                 $comment    = $ref->getDocComment();
                 $comment    = ClassDocParser::getDoc( $comment );
                 $content    = [];
-                $content[]  = "[$route]";
-                $content[]  = '';
-                $content[]  = preg_replace( '@^@m', '   ', $comment->desc );
-                $content[]  = '';
-                $content[]  = "   REGRAS DE NEGÓCIO";
+                $content[]  = "URL    : $route";
+                $content[]  = 'DESC   : '. $comment->desc;
+                $content[]  = "REGRAS :";
 
                 $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
                 $has_rules  = 0;
@@ -113,19 +150,57 @@ class Autodoc extends \StdClass
                         $ruleref    = new \ReflectionClass( $ruleclass );
                         $docrule    = $ruleref->getDocComment();
                         $docrule    = ClassDocParser::getDoc( $docrule );
-                        $content[]  = '   - ' . preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
+                        $content[]  = '- ' . preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
                     }
                 }
 
                 if ( !$has_rules )
-                    $content[]  = '   Nenhuma regra de negócio definida.';
+                    $content[]      = 'Nenhuma regra de negócio definida.';
 
-                $content        = implode( PHP_EOL, $content );
-                $this->doc[]    = $content;
-                $filectn        = substr( $subpath, 0, -11 ) . 'user-story.jf';
-                
-                file_put_contents( $filectn, $content );
+                $content                = implode( PHP_EOL, $content );
+                $this->doc[ $route ]    = $content;
             }
+        }
+    }
+
+    /**
+     * Salva a lista de módulos.
+     */
+    private function saveModules()
+    {
+        $content = json_encode( $this->modules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+        file_put_contents( DIR_BASE . '/doc/modules-list.json', $content );
+
+        foreach ( $this->modules as $name => $module )
+            mkdir( DIR_BASE . '/doc/modules/' . $name );
+    }
+
+    /**
+     * Salva os arquivos com a documentação.
+     */
+    private function saveContentFiles()
+    {
+        $tot_modules = count( $this->modules );
+
+        foreach ( $this->doc as $path => $content )
+        {
+            $modpath    = DIR_BASE . '/doc/modules';
+            $index      = $tot_modules;
+            $discount   = 0;
+
+            foreach ( array_reverse( $this->modules ) as $name => $module )
+            {
+                if ( !str_starts_with( $path, $module[0] ) )
+                    continue;
+
+                $discount = strlen( $module[0] );
+                $modpath .= '/' . $name;
+                break;
+            }
+
+            // $modpath .= '/' . substr( str_replace( '/', '-', substr( $path, 1 ) ), $discount );
+            $modpath .= '/' . str_replace( '/', '-', substr( $path, 1 ) );
+            file_put_contents( $modpath, $content );
         }
     }
 }
