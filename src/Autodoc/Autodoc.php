@@ -122,7 +122,6 @@ class Autodoc extends \StdClass
                 $content    = [];
                 $content[]  = "URL    : $route";
                 $content[]  = 'DESC   : '. $comment->desc;
-                $content[]  = "REGRAS :";
 
                 $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
                 $has_rules  = 0;
@@ -132,7 +131,7 @@ class Autodoc extends \StdClass
                     $dir_rules  = new \FilesystemIterator( $rules_path );
                     $rulemodel  = 'JF\\Domain\\Rule';
 
-                    foreach ( $dir_rules as $rule )
+                    foreach ( $dir_rules as $i => $rule )
                     {
                         $rulepath   = $rule->getPathname();
                         $rulename   = $rule->getFilename();
@@ -146,11 +145,14 @@ class Autodoc extends \StdClass
                         if ( !is_subclass_of( $ruleclass, $rulemodel ) )
                             throw new Warning( "$ruleclass não estende à classe $rulemodel." );
                         
-                        $has_rules  = 0;
+                        $has_rules  = 1;
                         $ruleref    = new \ReflectionClass( $ruleclass );
                         $docrule    = $ruleref->getDocComment();
                         $docrule    = ClassDocParser::getDoc( $docrule );
-                        $content[]  = '- ' . preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
+                        $ruleline   = preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
+                        $content[]  = !$i
+                            ? 'REGRAS : - ' . $ruleline
+                            : '       - ' . $ruleline;
                     }
                 }
 
