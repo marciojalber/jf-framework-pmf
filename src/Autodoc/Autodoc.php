@@ -42,8 +42,8 @@ class Autodoc extends \StdClass
         mkdir( DIR_BASE . '/doc/modules' );
         
         $this->parseServices( DIR_SERVICES );
-        $this->saveModules();
         $this->saveContentFiles();
+        $this->saveModules();
     }
 
     /**
@@ -95,7 +95,6 @@ class Autodoc extends \StdClass
             array_pop( $route );
             $route      = implode( '/', $route );
             $route      = strtolower( $route );
-            $tot_tests  = 0;
 
             if ( $filename == 'autodoc-module' )
             {
@@ -106,16 +105,20 @@ class Autodoc extends \StdClass
                 $title      = array_shift( $content );
                 $title      = preg_replace( '@\[|\]@', '', $title );
                 $this->modules[ $name ] = (object) [
-                    'title' => $title,
-                    'route' => $route,
-                    'text'  => $content,
+                    'name'          => $name,
+                    'title'         => $title,
+                    'route'         => $route,
+                    'text'          => $content,
+                    'totalServices' => 0,
+                    'testsCover'    => 0,
                 ];
                 continue;
             }
 
-            if ( substr( $filename, -10 == '__Test.php' ) )
+            if ( substr( $filename, -10 ) == '__Test.php' )
             {
                 $this->addDoc( $route );
+                $this->doc[ $route ]->hasTests = 1;
                 $this->doc[ $route ]->tests++;
                 continue;
             }
@@ -139,6 +142,7 @@ class Autodoc extends \StdClass
                 $comment        = $ref->getDocComment();
                 $comment        = ClassDocParser::getDoc( $comment );
                 $this->addDoc( $route, $comment->desc );
+                $content        = &$this->doc[ $route ];
 
                 $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
                 $has_rules  = 0;
@@ -177,7 +181,7 @@ class Autodoc extends \StdClass
     }
 
     /**
-     * Adiciona uma funcionalidade à documentação.
+     * Adiciona um serviço à documentação.
      */
     private function addDoc( $route, $desc = '' )
     {
@@ -188,20 +192,9 @@ class Autodoc extends \StdClass
             'url'               => $route,
             'desc'              => $desc,
             'rules'             => [],
+            'hasTests'          => 0,
             'tests'             => 0,
         ];
-    }
-
-    /**
-     * Salva a lista de módulos.
-     */
-    private function saveModules()
-    {
-        $content = $this->jsonEncode( $this->modules );
-        file_put_contents( DIR_BASE . '/doc/modules-list.json', $content );
-
-        foreach ( $this->modules as $name => $module )
-            mkdir( DIR_BASE . '/doc/modules/' . $name );
     }
 
     /**
@@ -209,6 +202,9 @@ class Autodoc extends \StdClass
      */
     private function saveContentFiles()
     {
+        foreach ( $this->modules as $name => $module )
+            mkdir( DIR_BASE . '/doc/modules/' . $name );
+
         $tot_modules = count( $this->modules );
 
         foreach ( $this->doc as $path => $content )
@@ -222,8 +218,10 @@ class Autodoc extends \StdClass
                 if ( !str_starts_with( $path, $module->route ) )
                     continue;
 
-                $discount = strlen( $module->route );
-                $modpath .= '/' . $name;
+                $module->totalServices++;
+                $module->testsCover     += $content->hasTests;
+                $discount               = strlen( $module->route );
+                $modpath                .= '/' . $name;
                 break;
             }
 
@@ -231,6 +229,17 @@ class Autodoc extends \StdClass
             $modpath .= '/' . str_replace( '/', '-', substr( $path, 1 ) ) . '.json';
             file_put_contents( $modpath, $this->jsonEncode( $content ) );
         }
+    }
+
+    /**
+     * Salva a lista de módulos.
+     */
+    private function saveModules()
+    {
+        $content    = $this->jsonEncode( $this->modules );
+        $file       = DIR_BASE . '/doc/modules-list.json';
+        
+        file_put_contents( $file, $content );
     }
 
     /**
