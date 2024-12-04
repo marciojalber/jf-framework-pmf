@@ -88,19 +88,27 @@ class Autodoc extends \StdClass
 
             $route      = substr( $subpath, $this->lenbase + 1 );
             $classname  = 'App\\Services\\' . substr( $route, 0, -4 );
-            $route      = $filename == 'module'
-                ? substr( $route, 0, -7 )
-                : substr( $route, 0, -12 );
             $docpath    = DIR_BASE . '/doc/modules/' . str_replace( '\\', '.', $route );
             $route      = '/' . str_replace( '\\', '/', $route );
             $route      = str_replace( '_', '-', $route );
+            $route      = explode( '/', $route );
+            array_pop( $route );
+            $route      = implode( '/', $route );
             $route      = strtolower( $route );
 
-            if ( $filename == 'module' )
+            if ( $filename == 'autodoc-module' )
             {
-                $total  = count( $this->modules ) + 1;
-                $name   = 'module' . $total;
-                $this->modules[ $name ] = [$route, file_get_contents( $subpath )];
+                $total      = count( $this->modules ) + 1;
+                $name       = 'module' . $total;
+                $content    = trim( file_get_contents( $subpath ) );
+                $content    = preg_split( '@[\n\r]+@', $content );
+                $title      = array_shift( $content );
+                $title      = preg_replace( '@\[|\]@', '', $title );
+                $this->modules[ $name ] = (object) [
+                    'title' => $title,
+                    'route' => $route,
+                    'text'  => $content,
+                ];
             }
 
             if ( $filename != 'Service.php' )
@@ -189,10 +197,10 @@ class Autodoc extends \StdClass
 
             foreach ( array_reverse( $this->modules ) as $name => $module )
             {
-                if ( !str_starts_with( $path, $module[0] ) )
+                if ( !str_starts_with( $path, $module->route ) )
                     continue;
 
-                $discount = strlen( $module[0] );
+                $discount = strlen( $module->route );
                 $modpath .= '/' . $name;
                 break;
             }
@@ -210,7 +218,7 @@ class Autodoc extends \StdClass
     {
         return json_encode(
             $content,
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
         );
     }
 }
