@@ -113,7 +113,7 @@ class Autodoc extends \StdClass
                 continue;
             }
 
-            if ( substr( $filename, -10 == '__Test.php' )
+            if ( substr( $filename, -10 == '__Test.php' ) )
             {
                 $this->addDoc( $route );
                 $this->doc[ $route ]->tests++;
