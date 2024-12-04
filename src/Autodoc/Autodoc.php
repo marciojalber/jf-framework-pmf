@@ -95,6 +95,7 @@ class Autodoc extends \StdClass
             array_pop( $route );
             $route      = implode( '/', $route );
             $route      = strtolower( $route );
+            $tot_tests  = 0;
 
             if ( $filename == 'autodoc-module' )
             {
@@ -109,6 +110,14 @@ class Autodoc extends \StdClass
                     'route' => $route,
                     'text'  => $content,
                 ];
+                continue;
+            }
+
+            if ( substr( $filename, -10 == '__Test.php' )
+            {
+                $this->addDoc( $route );
+                $this->doc[ $route ]->tests++;
+                continue;
             }
 
             if ( $filename != 'Service.php' )
@@ -129,10 +138,7 @@ class Autodoc extends \StdClass
 
                 $comment        = $ref->getDocComment();
                 $comment        = ClassDocParser::getDoc( $comment );
-                $content        = (object) [];
-                $content->url   = $route;
-                $content->desc  = $comment->desc;
-                $content->rules = [];
+                $this->addDoc( $route, $comment->desc );
 
                 $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
                 $has_rules  = 0;
@@ -168,6 +174,22 @@ class Autodoc extends \StdClass
                 $this->doc[ $route ] = $content;
             }
         }
+    }
+
+    /**
+     * Adiciona uma funcionalidade à documentação.
+     */
+    private function addDoc( $route, $desc = '' )
+    {
+        if ( isset( $this->doc[ $route ] ) )
+            return;
+
+        $this->doc[ $route ]    = (object) [
+            'url'               => $route,
+            'desc'              => $desc,
+            'rules'             => [],
+            'tests'             => 0,
+        ];
     }
 
     /**
