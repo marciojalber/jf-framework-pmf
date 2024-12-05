@@ -21,6 +21,11 @@ class Autodoc extends \StdClass
     protected $modules = [];
 
     /**
+     * Objeto para adicionar informações extra à documentação.
+     */
+    protected $extraInfo;
+
+    /**
      * Inicia uma instância do Autodoc.
      */
     public static function init()
@@ -73,7 +78,7 @@ class Autodoc extends \StdClass
      */
     private function parseServices( $path )
     {
-        $dir = new \FileSystemIterator( $path );
+        $dir            = new \FileSystemIterator( $path );
 
         foreach ( $dir as $item )
         {
@@ -129,8 +134,8 @@ class Autodoc extends \StdClass
             if ( $classname == 'App\\Services\\Bi\\Dashboard\\Desempenho\\Totalizar\\Service' )
                 continue;
 
-            $ref    = new \ReflectionClass( $classname );
-            $attrs  = $ref->getAttributes();
+            $ref        = new \ReflectionClass( $classname );
+            $attrs      = $ref->getAttributes();
 
             foreach ( $attrs as $attr )
             {
@@ -143,9 +148,11 @@ class Autodoc extends \StdClass
                 $comment        = ClassDocParser::getDoc( $comment );
                 $this->addDoc( $route, $comment->desc );
                 $content        = &$this->doc[ $route ];
+                $rules_path     = str_replace( 'Service.php', 'Rules', $subpath );
+                $dochelp        = $content->dochelp;
 
-                $rules_path = str_replace( 'Service.php', 'Rules', $subpath );
-                $has_rules  = 0;
+                if ( $dochelp && method_exists( $dochelp, 'analyseService' ) )
+                    $dochelp->analyseService( $ref );
                 
                 if ( file_exists( $rules_path ) )
                 {
@@ -166,12 +173,14 @@ class Autodoc extends \StdClass
                         if ( !is_subclass_of( $ruleclass, $rulemodel ) )
                             throw new Warning( "$ruleclass não estende à classe $rulemodel." );
                         
-                        $has_rules  = 1;
                         $ruleref    = new \ReflectionClass( $ruleclass );
                         $docrule    = $ruleref->getDocComment();
                         $docrule    = ClassDocParser::getDoc( $docrule );
                         $ruleline   = preg_replace( '@[\r\n\t\s]+@m', ' ', $docrule->desc );
                         $content->rules[]  = $ruleline;
+
+                        if ( $dochelp && method_exists( $dochelp, 'analyseRule') )
+                            $dochelp->analyseRule( $ruleref );
                     }
                 }
 
@@ -188,12 +197,16 @@ class Autodoc extends \StdClass
         if ( isset( $this->doc[ $route ] ) )
             return;
 
+        $dochelp_class          = 'App\\Doc';
         $this->doc[ $route ]    = (object) [
             'url'               => $route,
             'desc'              => $desc,
             'rules'             => [],
             'hasTests'          => 0,
             'tests'             => 0,
+            'dochelp'           => class_exists( $dochelp_class )
+                ? new $dochelp_class()
+                : null,
         ];
     }
 
@@ -225,8 +238,23 @@ class Autodoc extends \StdClass
                 break;
             }
 
+            if ( $content->dochelp )
+            {
+                $extra_service  = $content->dochelp->extraService();
+                $extra_rules    = $content->dochelp->extraRules();
+
+                array_walk( $extra_service, function( $val, $key ) use( $content ) {
+                    $content->$key = $val;
+                });
+
+                array_walk( $extra_rules, function( $val, $key ) use( $content ) {
+                    $content->rules[] = $val;
+                });
+            }
+
             // $modpath .= '/' . substr( str_replace( '/', '-', substr( $path, 1 ) ), $discount );
             $modpath .= '/' . str_replace( '/', '-', substr( $path, 1 ) ) . '.json';
+            unset( $content->dochelp );
             file_put_contents( $modpath, $this->jsonEncode( $content ) );
         }
     }
