@@ -116,6 +116,7 @@ class Autodoc extends \StdClass
                     'text'              => $content,
                     'totServices'       => 0,
                     'servicesWithDoc'   => 0,
+                    'docCoverage'       => 0,
                     'servicesWithTests' => 0,
                     'testsCoverage'     => 0,
                     'totTodos'          => 0,
@@ -265,10 +266,19 @@ class Autodoc extends \StdClass
                     continue;
 
                 $module->servicesWithDoc++;
+                $module->docCoverage      = round(
+                    $module->servicesWithDoc * 100 / $module->totServices,
+                    1
+                );
+
                 $module->servicesWithTests  += $content->hasTests;
                 $module->testsCoverage      = !$module->servicesWithTests
                     ? 0
-                    : round( $module->servicesWithTests * 100 / $module->servicesWithDoc, 1 );
+                    : round(
+                        $module->servicesWithTests * 100 / $module->servicesWithDoc,
+                        1
+                    );
+
                 $module->totTodos           += $tot_todos;
                 $discount                   = strlen( $module->route );
                 $modpath                    .= '/' . $name;
