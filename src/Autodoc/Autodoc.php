@@ -11,6 +11,11 @@ use JF\Exceptions\WarningException as Warning;
 class Autodoc extends \StdClass
 {
     /**
+     * Lista dos serviços encontrados.
+     */
+    protected $services = [];
+
+    /**
      * Conteúdo da documentação.
      */
     protected $doc = [];
@@ -19,11 +24,6 @@ class Autodoc extends \StdClass
      * Módulos informados.
      */
     protected $modules = [];
-
-    /**
-     * Objeto para adicionar informações extra à documentação.
-     */
-    protected $extraInfo;
 
     /**
      * Inicia uma instância do Autodoc.
@@ -110,12 +110,15 @@ class Autodoc extends \StdClass
                 $title      = array_shift( $content );
                 $title      = preg_replace( '@\[|\]@', '', $title );
                 $this->modules[ $name ] = (object) [
-                    'name'          => $name,
-                    'title'         => $title,
-                    'route'         => $route,
-                    'text'          => $content,
-                    'totalServices' => 0,
-                    'testsCover'    => 0,
+                    'name'              => $name,
+                    'title'             => $title,
+                    'route'             => $route,
+                    'text'              => $content,
+                    'totServices'       => 0,
+                    'servicesWithDoc'   => 0,
+                    'servicesWithTests' => 0,
+                    'testsCoverage'     => 0,
+                    'totTodos'          => 0,
                 ];
                 continue;
             }
@@ -124,7 +127,7 @@ class Autodoc extends \StdClass
             {
                 $this->addDoc( $route );
                 $this->doc[ $route ]->hasTests = 1;
-                $this->doc[ $route ]->tests++;
+                $this->doc[ $route ]->totTests++;
                 continue;
             }
 
@@ -134,8 +137,10 @@ class Autodoc extends \StdClass
             if ( $classname == 'App\\Services\\Bi\\Dashboard\\Desempenho\\Totalizar\\Service' )
                 continue;
 
-            $ref        = new \ReflectionClass( $classname );
-            $attrs      = $ref->getAttributes();
+
+            $this->services[]   = $route;
+            $ref                = new \ReflectionClass( $classname );
+            $attrs              = $ref->getAttributes();
 
             foreach ( $attrs as $attr )
             {
@@ -146,8 +151,10 @@ class Autodoc extends \StdClass
 
                 $comment        = $ref->getDocComment();
                 $comment        = ClassDocParser::getDoc( $comment );
-                $this->addDoc( $route, $comment->desc );
+                $this->addDoc( $route );
                 $content        = &$this->doc[ $route ];
+                $content->desc  = $comment->desc;
+                $content->todos = $comment->tags[ 'todo' ] ?? [];
                 $rules_path     = str_replace( 'Service.php', 'Rules', $subpath );
                 $dochelp        = $content->dochelp;
 
@@ -192,7 +199,7 @@ class Autodoc extends \StdClass
     /**
      * Adiciona um serviço à documentação.
      */
-    private function addDoc( $route, $desc = '' )
+    private function addDoc( $route )
     {
         if ( isset( $this->doc[ $route ] ) )
             return;
@@ -200,10 +207,11 @@ class Autodoc extends \StdClass
         $dochelp_class          = 'App\\Doc';
         $this->doc[ $route ]    = (object) [
             'url'               => $route,
-            'desc'              => $desc,
+            'desc'              => '',
             'rules'             => [],
             'hasTests'          => 0,
-            'tests'             => 0,
+            'totTests'          => 0,
+            'todos'             => [],
             'dochelp'           => class_exists( $dochelp_class )
                 ? new $dochelp_class()
                 : null,
@@ -215,26 +223,55 @@ class Autodoc extends \StdClass
      */
     private function saveContentFiles()
     {
+        $totals                 = (object) [
+            'totServices'       => count( $this->services ),
+            'servicesWithDoc'   => 0,
+            'docCoverage'       => 0,
+            'servicesWithTests' => 0,
+            'testsCoverage'     => 0,
+            'todos'             => 0,
+        ];
+
         foreach ( $this->modules as $name => $module )
             mkdir( DIR_BASE . '/doc/modules/' . $name );
 
         $tot_modules = count( $this->modules );
 
+        foreach ( $this->services as $path )
+        {
+            foreach ( array_reverse( $this->modules ) as $name => $module )
+            {
+                if ( !str_starts_with( $path, $module->route ) )
+                    continue;
+
+                $module->totServices++;
+                break;
+            }
+        }
+
         foreach ( $this->doc as $path => $content )
         {
-            $modpath    = DIR_BASE . '/doc/modules';
-            $index      = $tot_modules;
-            $discount   = 0;
+            $tot_todos                  = count( $content->todos );
+            $modpath                    = DIR_BASE . '/doc/modules';
+            $index                      = $tot_modules;
+            $discount                   = 0;
+            $totals->servicesWithTests  += $content->hasTests;
+            $totals->todos              += $tot_todos;
+            $totals->servicesWithDoc++;
 
             foreach ( array_reverse( $this->modules ) as $name => $module )
             {
                 if ( !str_starts_with( $path, $module->route ) )
                     continue;
 
-                $module->totalServices++;
-                $module->testsCover     += $content->hasTests;
-                $discount               = strlen( $module->route );
-                $modpath                .= '/' . $name;
+                $module->servicesWithDoc++;
+                $module->servicesWithTests  += $content->hasTests;
+                $module->testsCoverage      = !$module->servicesWithTests
+                    ? 0
+                    : round( $module->servicesWithTests * 100 / $module->servicesWithDoc, 1 );
+                $module->totTodos           += $tot_todos;
+                $discount                   = strlen( $module->route );
+                $modpath                    .= '/' . $name;
                 break;
             }
 
@@ -257,6 +294,14 @@ class Autodoc extends \StdClass
             unset( $content->dochelp );
             file_put_contents( $modpath, $this->jsonEncode( $content ) );
         }
+
+        $totals->docCoverage    = $totals->servicesWithDoc * 100 / $totals->totServices;
+        $totals->docCoverage    = round( $totals->docCoverage, 1 );
+        $totals->testsCoverage  = $totals->servicesWithTests * 100 / $totals->servicesWithDoc;
+        $totals->testsCoverage  = round( $totals->testsCoverage, 1 );
+        $content    = $this->jsonEncode( $totals );
+        $file       = DIR_BASE . '/doc/totals.json';
+        file_put_contents( $file, $content );
     }
 
     /**
