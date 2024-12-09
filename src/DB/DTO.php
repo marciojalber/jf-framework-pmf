@@ -146,6 +146,18 @@ class DTO extends \StdClass
         $class      = get_called_class();
         $ref_class  = new \ReflectionClass( $class );
         $attrs      = $ref_class->getAttributes();
+        $attr_arg   = [
+            'type',         'desc',
+            'min',          'max',
+            'minlength',    'maxlength',
+            'lessThan',     'lessEqThan',
+            'greaterThan',  'greaterEqThan',
+        ];
+        $types      = [
+            'str',  'email',
+            'bit',  'int',      'float',
+            'date', 'datetime', 'time',
+        ];
 
         foreach ( $attrs as $attr )
         {
@@ -159,11 +171,6 @@ class DTO extends \StdClass
                 static::$tables[ $class ]   = $val;
         }
 
-        $types                  = [
-            'str',  'email',
-            'bit',  'int',      'float',
-            'date', 'datetime', 'time',
-        ];
         $cols                   = $ref_class->getProperties();
         $columns                = [];
         self::$hides[ $class ]  = [];
@@ -186,13 +193,6 @@ class DTO extends \StdClass
                     $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
                     $val        = $attr->getArguments()[0] ?? null;
                     $attr_void  = ['priKey', 'hide', 'required', 'trim'];
-                    $attr_arg   = [
-                        'type',         'desc',
-                        'min',          'max',
-                        'minlength',    'maxlength',
-                        'lessThan',     'lessEqThan',
-                        'greaterThan',  'greaterEqThan',
-                    ];
 
                     if ( in_array( $name, $attr_void ) )
                         $column->$name = 1;

@@ -241,7 +241,7 @@ class ModelMaker
         if ( !$result )
             return;
 
-        $in_pattern     = '@`in \(@i';
+        $in_pattern     = '@` in \(@i';
         $len_pattern    = '@^([A-Za-z]+_)?LENGTH\(.*?\) *>=@i';
         $lg_pattern     = '@` (>|>=|<|<=) `@';
         $regex_pattern  = '@`.*?` REGEXP@i';

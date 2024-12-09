@@ -10,6 +10,13 @@ use JF\Exceptions\WarningException as Warning;
  */
 class Autodoc extends \StdClass
 {
+    use PlantUML__Trait;
+
+    /**
+     * Lista dos esquemas e seus respectivos models.
+     */
+    protected $schemas = [];
+
     /**
      * Lista dos serviços encontrados.
      */
@@ -38,17 +45,47 @@ class Autodoc extends \StdClass
      */
     public function run()
     {
-        $this->lenbase  = strlen( DIR_SERVICES );
-        $pathdoc        = DIR_BASE . '/doc';
-        
-        file_exists( $pathdoc ) || mkdir( $pathdoc );
-        $this->clearDocPath( DIR_BASE . '/doc' );
-        
-        mkdir( DIR_BASE . '/doc/modules' );
-        
+        $this->config();
+        $this->clearPaths();
+        $this->parseDBModels();
         $this->parseServices( DIR_SERVICES );
+        $this->sendLog( 'Conclusão dos services' );
         $this->saveContentFiles();
         $this->saveModules();
+        $this->sendLog();
+    }
+
+    /**
+     * Define as configurações iniciais.
+     */
+    private function config()
+    {
+        $this->start    = new \DateTime();
+        $this->last     = $this->start;
+        $this->lenbase  = strlen( DIR_BASE ) + 1;
+        $this->lenserv  = strlen( DIR_SERVICES );
+        $paths          = [
+            DIR_BASE . '/doc',
+            DIR_BASE . '/doc/dbmodels',
+            DIR_BASE . '/doc/services',
+            DIR_BASE . '/doc/services/modules',
+        ];
+        
+        foreach ( $paths as $path )
+            file_exists( $path ) || mkdir( $path );
+
+        echo 'Iniciado em : ' . $this->last->format( 'Y-m-d' ) . PHP_EOL;
+        echo 'Iniciado às : ' . $this->last->format( 'H:i:s' ) . PHP_EOL;
+    }
+
+    /**
+     * Limpa as pastas.
+     */
+    private function clearPaths()
+    {
+        $this->clearDocPath( DIR_BASE . '/doc/dbmodels' );
+        $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
+        $this->sendLog( 'Limpeza das pastas realizada' );
     }
 
     /**
@@ -76,6 +113,115 @@ class Autodoc extends \StdClass
     /**
      * Roda o Autodoc.
      */
+    private function parseDBModels()
+    {
+        $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
+        $model_sufix    = '__Model.php';
+        $model_len      = strlen( $model_sufix );
+        $this->schemas  = (object) [];
+
+        foreach ( $dir as $schema )
+        {
+            if ( !$schema->isDir() )
+                continue;
+
+            $scname         = $schema->getFilename();
+            $content        = "@startuml
+!define DARKBLUE
+!includeurl https://raw.githubusercontent.com/Drakemor/RedDress-PlantUML/master/style.puml" . PHP_EOL . PHP_EOL;
+            $schema         = new \FileSystemIterator( $schema );
+            $entities       = [];
+
+            foreach ( $schema as $dto )
+            {
+                if ( !$dto->isDir() )
+                    continue;
+                
+                $dto         = new \FileSystemIterator( $dto );
+
+                foreach ( $dto as $item )
+                {
+                    $filename   = $item->getFilename();
+                    $pathname   = $item->getPathname();
+
+                    if ( substr( $filename, -$model_len ) != $model_sufix )
+                        continue;
+
+                    if ( substr( $filename, 0, 1 ) == '_' )
+                        continue;
+                    
+                    $entities[] = $this->parseEntity( $filename, $pathname );
+                }
+            }
+
+            $content    .= $entities
+                ? implode( PHP_EOL, $entities ) . PHP_EOL
+                : '';
+            $content    .= '@enduml';
+            $filedbmodel = DIR_BASE . '/doc/dbmodels/' . $scname . '.svg';
+            
+            $encoded    = $this->encode( $content );
+            $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
+            $result     = file_get_contents( $url );
+
+            file_put_contents( $filedbmodel, $result );
+            $this->sendLog( 'Captura do DBModel ' . $scname );
+        }
+
+        $this->sendLog( 'Conclusão da captura dos DBModel' );
+    }
+
+    /**
+     * Captura os dados da entidade.
+     */
+    private function parseEntity( $filename, $pathname )
+    {
+        $entityname     = substr( $filename, 0, -11 );
+        $classname      = substr( $pathname, $this->lenbase, -4 );
+        $classname      = str_replace( '/', '\\', $classname );
+        $ref            = new \ReflectionClass( $classname );
+        $props          = $ref->getProperties();
+        $cols           = [];
+        $props_parse    = [ 'type', 'desc' ];
+
+        foreach ( $props as $prop )
+        {
+            if ( !$prop->isPublic() || $prop->isStatic() )
+                continue;
+            
+            $colname    = $prop->name;
+            $coltype    = 'TYPE';
+            $coldesc    = 'DESC';
+            $attrs      = $prop->getAttributes();
+            
+            if ( $attrs )
+            {
+                foreach ( $attrs as $attr )
+                {
+                    $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
+                    $val        = $attr->getArguments()[0] ?? null;
+
+                    if ( !in_array( $name, $props_parse ) )
+                        continue;
+
+                    ${'col' . $name} = $val;
+                }
+            }
+
+            $col        = "  + {$colname}: {$coltype} \"{$coldesc}\"";
+            $cols[]     = $col;
+        }
+
+        $content    = "entity \"$entityname\" as $entityname {" . PHP_EOL;
+        $content    .= implode( PHP_EOL, $cols ) . PHP_EOL;
+        $content    .= "}" . PHP_EOL;
+
+        return $content;
+    }
+
+    /**
+     * Roda o Autodoc.
+     */
     private function parseServices( $path )
     {
         $dir            = new \FileSystemIterator( $path );
@@ -91,9 +237,9 @@ class Autodoc extends \StdClass
                 continue;
             }
 
-            $route      = substr( $subpath, $this->lenbase + 1 );
+            $route      = substr( $subpath, $this->lenserv + 1 );
             $classname  = 'App\\Services\\' . substr( $route, 0, -4 );
-            $docpath    = DIR_BASE . '/doc/modules/' . str_replace( '\\', '.', $route );
+            $docpath    = DIR_BASE . '/doc/services/modules/' . str_replace( '\\', '.', $route );
             $route      = '/' . str_replace( '\\', '/', $route );
             $route      = str_replace( '_', '-', $route );
             $route      = explode( '/', $route );
@@ -234,7 +380,7 @@ class Autodoc extends \StdClass
         ];
 
         foreach ( $this->modules as $name => $module )
-            mkdir( DIR_BASE . '/doc/modules/' . $name );
+            mkdir( DIR_BASE . '/doc/services/modules/' . $name );
 
         $tot_modules = count( $this->modules );
 
@@ -253,7 +399,7 @@ class Autodoc extends \StdClass
         foreach ( $this->doc as $path => $content )
         {
             $tot_todos                  = count( $content->todos );
-            $modpath                    = DIR_BASE . '/doc/modules';
+            $modpath                    = DIR_BASE . '/doc/services/modules';
             $index                      = $tot_modules;
             $discount                   = 0;
             $totals->servicesWithTests  += $content->hasTests;
@@ -310,7 +456,7 @@ class Autodoc extends \StdClass
         $totals->testsCoverage  = $totals->servicesWithTests * 100 / $totals->servicesWithDoc;
         $totals->testsCoverage  = round( $totals->testsCoverage, 1 );
         $content    = $this->jsonEncode( $totals );
-        $file       = DIR_BASE . '/doc/totals.json';
+        $file       = DIR_BASE . '/doc/services/totals.json';
         file_put_contents( $file, $content );
     }
 
@@ -320,7 +466,7 @@ class Autodoc extends \StdClass
     private function saveModules()
     {
         $content    = $this->jsonEncode( $this->modules );
-        $file       = DIR_BASE . '/doc/modules-list.json';
+        $file       = DIR_BASE . '/doc/services/modules-list.json';
         
         file_put_contents( $file, $content );
     }
@@ -334,5 +480,28 @@ class Autodoc extends \StdClass
             $content,
             JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
         );
+    }
+
+    /**
+     * Envia um log pra tela.
+     */
+    private function sendLog( $content = '' )
+    {
+        $now    = new \DateTime();
+        $start  = $this->last;
+
+        if ( !$content )
+        {
+            $start      = $this->start;
+            $content    = '-- FIM --';
+        }
+
+        $time   = $now->format( 'H:i:s' );
+        $diff   = $now->diff( $start );
+        $hr     = substr( '0' . strval( $diff->h ), -2 );
+        $min    = substr( '0' . strval( $diff->i ), -2 );
+        $seg    = substr( '0' . strval( $diff->s ), -2 );
+        $last   = "$hr:$min:$seg";
+        echo "$content: $time [$last]". PHP_EOL;
     }
 }
