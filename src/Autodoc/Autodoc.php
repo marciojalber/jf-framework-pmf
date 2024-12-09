@@ -376,7 +376,7 @@ class Autodoc extends \StdClass
             'docCoverage'       => 0,
             'servicesWithTests' => 0,
             'testsCoverage'     => 0,
-            'todos'             => 0,
+            'totTodos'          => 0,
         ];
 
         foreach ( $this->modules as $name => $module )
@@ -403,7 +403,7 @@ class Autodoc extends \StdClass
             $index                      = $tot_modules;
             $discount                   = 0;
             $totals->servicesWithTests  += $content->hasTests;
-            $totals->todos              += $tot_todos;
+            $totals->totTodos           += $tot_todos;
             $totals->servicesWithDoc++;
 
             foreach ( array_reverse( $this->modules ) as $name => $module )
