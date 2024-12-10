@@ -49,7 +49,7 @@ class Autodoc extends \StdClass
         $this->clearPaths();
         $this->parseDBModels();
         $this->parseServices( DIR_SERVICES );
-        $this->sendLog( 'Conclusão dos services' );
+        $this->sendLog( 'Conclusão dos services', 1 );
         $this->saveContentFiles();
         $this->saveModules();
         $this->sendLog();
@@ -74,8 +74,11 @@ class Autodoc extends \StdClass
         foreach ( $paths as $path )
             file_exists( $path ) || mkdir( $path );
 
+        echo PHP_EOL;
+        echo '-- INI --' . PHP_EOL;
         echo 'Iniciado em : ' . $this->last->format( 'Y-m-d' ) . PHP_EOL;
         echo 'Iniciado às : ' . $this->last->format( 'H:i:s' ) . PHP_EOL;
+        echo PHP_EOL;
     }
 
     /**
@@ -85,7 +88,7 @@ class Autodoc extends \StdClass
     {
         $this->clearDocPath( DIR_BASE . '/doc/dbmodels' );
         $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
-        $this->sendLog( 'Limpeza das pastas realizada' );
+        $this->sendLog( 'Limpeza das pastas realizada', 1 );
     }
 
     /**
@@ -162,13 +165,13 @@ class Autodoc extends \StdClass
             
             $encoded    = $this->encode( $content );
             $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
-            $result     = file_get_contents( $url );
+            $content     = file_get_contents( $url );
 
-            file_put_contents( $filedbmodel, $result );
+            file_put_contents( $filedbmodel, $content );
             $this->sendLog( 'Captura do DBModel ' . $scname );
         }
 
-        $this->sendLog( 'Conclusão da captura dos DBModel' );
+        $this->sendLog( 'Conclusão da captura dos DBModel', 1 );
     }
 
     /**
@@ -184,6 +187,34 @@ class Autodoc extends \StdClass
         $cols           = [];
         $props_parse    = [ 'type', 'desc' ];
 
+        $comment        = $ref->getDocComment();
+        $comment        = ClassDocParser::getDoc( $comment );
+        $entitydesc     = $comment->desc;
+        $methods        = $ref->getMethods();
+        $methods        = $ref->getMethods();
+
+        foreach ( $methods as $i => &$method )
+        {
+            if ( $method->class == 'JF\\DB\\DTO' )
+            {
+                unset( $methods[ $i ] );
+                continue;
+            }
+
+            $comment    = $method->getDocComment();
+            $comment    = ClassDocParser::getDoc( $comment );
+            $ctnmethod  = '  ' . $comment->desc . PHP_EOL;
+            $returntype = (string) $method->getReturnType();
+            $ctnmethod  .= $method->isPublic()
+                ? '  + '
+                : '  - ';
+            $ctnmethod  .= $method->name . '()';
+            $ctnmethod  .= $returntype
+                ? ': ' . $returntype
+                : '';
+            $method     = $ctnmethod;
+        }
+
         foreach ( $props as $prop )
         {
             if ( !$prop->isPublic() || $prop->isStatic() )
@@ -193,6 +224,7 @@ class Autodoc extends \StdClass
             $coltype    = 'TYPE';
             $coldesc    = 'DESC';
             $attrs      = $prop->getAttributes();
+            $pk         = '';
             
             if ( $attrs )
             {
@@ -201,6 +233,10 @@ class Autodoc extends \StdClass
                     $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
                     $val        = $attr->getArguments()[0] ?? null;
 
+                    if ( $name == 'priKey' )
+                        $pk = ' <<PK>>';
+                        continue;
+
                     if ( !in_array( $name, $props_parse ) )
                         continue;
 
@@ -208,12 +244,17 @@ class Autodoc extends \StdClass
                 }
             }
 
-            $col        = "  + {$colname}: {$coltype} \"{$coldesc}\"";
+            $col        = "  + $colname: $coltype \"$coldesc\"$pk";
             $cols[]     = $col;
         }
 
         $content    = "entity \"$entityname\" as $entityname {" . PHP_EOL;
+        $content    .= '  ' . $entitydesc . PHP_EOL;
+        $content    .= '  --' . PHP_EOL;
         $content    .= implode( PHP_EOL, $cols ) . PHP_EOL;
+        $content    .= $methods
+            ? '  --' . PHP_EOL . implode( PHP_EOL . '  --' . PHP_EOL, $methods ) . PHP_EOL
+            : '';
         $content    .= "}" . PHP_EOL;
 
         return $content;
@@ -485,23 +526,36 @@ class Autodoc extends \StdClass
     /**
      * Envia um log pra tela.
      */
-    private function sendLog( $content = '' )
+    private function sendLog( $content = '', $sep = 0 )
     {
-        $now    = new \DateTime();
-        $start  = $this->last;
+        $now        = new \DateTime();
+        $start      = $this->last;
+        $fim        = 0;
 
         if ( !$content )
         {
             $start      = $this->start;
-            $content    = '-- FIM --';
+            $content    = 'Conclusão do script';
+            $fim        = 1;
         }
 
-        $time   = $now->format( 'H:i:s' );
-        $diff   = $now->diff( $start );
-        $hr     = substr( '0' . strval( $diff->h ), -2 );
-        $min    = substr( '0' . strval( $diff->i ), -2 );
-        $seg    = substr( '0' . strval( $diff->s ), -2 );
-        $last   = "$hr:$min:$seg";
+        $time       = $now->format( 'H:i:s' );
+        $diff       = $now->diff( $start );
+        $this->last = $now;
+        $hr         = substr( '0' . strval( $diff->h ), -2 );
+        $min        = substr( '0' . strval( $diff->i ), -2 );
+        $seg        = substr( '0' . strval( $diff->s ), -2 );
+        $mili       = round( $diff->f, 3 );
+        $mili       = strval( $mili );
+        $mili       = substr( $mili, 2 );
+        $mili       = str_pad( $mili, 3, '0' );
+        $last       = "$hr:$min:$seg.$mili";
         echo "$content: $time [$last]". PHP_EOL;
+        
+        if ( $sep )
+            echo PHP_EOL;
+
+        if ( $fim )
+            echo "-- FIM --". PHP_EOL;
     }
 }
