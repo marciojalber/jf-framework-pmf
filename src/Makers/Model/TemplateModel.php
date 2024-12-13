@@ -14,4 +14,9 @@ class $classname extends \JF\DB\DTO
     use $traitname;
 
 $_props
+
+    /**
+     * Relacionamentos da tabela.
+     */
+    protected static $fks = $_fks;
 }

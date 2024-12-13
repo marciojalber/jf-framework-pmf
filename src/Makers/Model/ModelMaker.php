@@ -6,6 +6,7 @@ use JF\Config;
 use JF\DB\DB;
 use JF\FileSystem\Dir;
 use JF\Exceptions\ErrorException as Error;
+use JF\Utils;
 
 /**
  * Criador de DTOs.
@@ -61,6 +62,11 @@ class ModelMaker
      * Maxlength da tabela.
      */
     protected $tableMinlength   = [];
+
+    /**
+     * Relacionamentos com outras tabelas.
+     */
+    protected $tableBinds       = [];
 
     /**
      * Estrutura das propriedades do DTO.
@@ -146,10 +152,12 @@ class ModelMaker
 
         foreach ( $tables as $table )
         {
-            $this->table = $table;
+            $this->tableBinds   = [];
+            $this->table        = $table;
 
             $this->getTableComment();
             $this->getTableInfos();
+            $this->getTableBinds();
             $this->getTableChecks();
             $this->fillProps();
             $this->convertProps();
@@ -221,6 +229,35 @@ class ModelMaker
             return;
 
         throw new \Exception( "Nenhuma informação encontrada para a tabela [$this->table] no banco [$this->config->dbname]." );
+    }
+
+    /**
+     * Obtém os vínculos entre tabelas.
+     */
+    protected function getTableBinds()
+    {
+        $sql        = "
+            SELECT  `c`.`FOR_COL_NAME`                              `fk`,
+                    REGEXP_REPLACE( `t`.`REF_NAME`, '.*\/', '' )    `table`,
+                    `c`.`REF_COL_NAME`                              `col`
+            FROM    `information_schema`.`INNODB_SYS_FOREIGN`       `t`
+            JOIN    `information_schema`.`INNODB_SYS_FOREIGN_COLS`  `c`
+            USING   ( `ID` )
+            WHERE   REGEXP_REPLACE( `t`.`FOR_NAME`, '\/.*', '' )        = '{$this->config->dbname}'
+                    AND REGEXP_REPLACE( `t`.`FOR_NAME`, '\/.*', '' )    = REGEXP_REPLACE( `t`.`REF_NAME`, '\/.*', '' )
+                    AND REGEXP_REPLACE( `t`.`FOR_NAME`, '.*\/', '' )    = '$this->table'
+        ";
+        $result = DB::instance( $this->schema )
+            ->execute( $sql )
+            ->all();
+
+        foreach ( $result as $item )
+        {
+            $fk     = $item[ 'fk' ];
+            unset( $item[ 'fk' ] );
+            
+            $this->tableBinds[ $fk ] = $item;
+        }
     }
 
     /**
@@ -578,12 +615,14 @@ class ModelMaker
         $dirname    = !$dirname
             ? DIR_BASE . '/' . str_replace( '\\', '/', $ns )
             : $dirname;
+        $tb_binds   = Utils::varExport( $this->tableBinds );
+        $tb_binds   = preg_replace( '@' . PHP_EOL . '@', PHP_EOL .'    ', $tb_binds  );
         $classfile  = $dirname . '/' . $classname . '.php';
         $traitfile  = $dirname . '/' . $traitname . '.php';
         $class      = file_get_contents( __DIR__ . '/TemplateModel.php' );
         $class      = str_replace(
-            ['$ns', '$_table', '$hoje', '$classname', '$traitname', '$_schema', '$_props'],
-            [$ns, $this->table, $hoje, $classname, $traitname, $this->schema, $this->props, $this->priKey, $this->label],
+            ['$ns', '$_table', '$hoje', '$classname', '$traitname', '$_schema', '$_props','$_fks'],
+            [$ns, $this->table, $hoje, $classname, $traitname, $this->schema, $this->props, $tb_binds],
             $class
         );
         $trait      = file_get_contents( __DIR__ . '/TemplateTasks.php' );

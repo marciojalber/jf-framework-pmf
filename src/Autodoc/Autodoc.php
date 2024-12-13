@@ -23,14 +23,19 @@ class Autodoc extends \StdClass
     protected $services = [];
 
     /**
+     * Lista as rotinas encontradas.
+     */
+    protected $routines = [];
+
+    /**
      * Conteúdo da documentação.
      */
-    protected $doc = [];
+    protected $doc      = [];
 
     /**
      * Módulos informados.
      */
-    protected $modules = [];
+    protected $modules  = [];
 
     /**
      * Inicia uma instância do Autodoc.
@@ -48,6 +53,8 @@ class Autodoc extends \StdClass
         $this->config();
         $this->clearPaths();
         $this->parseDBModels();
+        $this->parseRoutines( DIR_ROUTINES );
+        $this->saveRoutines();
         $this->parseServices( DIR_SERVICES );
         $this->sendLog( 'Conclusão dos services', 1 );
         $this->saveContentFiles();
@@ -64,9 +71,11 @@ class Autodoc extends \StdClass
         $this->last     = $this->start;
         $this->lenbase  = strlen( DIR_BASE ) + 1;
         $this->lenserv  = strlen( DIR_SERVICES );
+        $this->schemas  = (object) [];
         $paths          = [
             DIR_BASE . '/doc',
             DIR_BASE . '/doc/dbmodels',
+            DIR_BASE . '/doc/routines',
             DIR_BASE . '/doc/services',
             DIR_BASE . '/doc/services/modules',
         ];
@@ -114,14 +123,13 @@ class Autodoc extends \StdClass
     }
 
     /**
-     * Roda o Autodoc.
+     * Captura os modelos representativos das tabelas.
      */
     private function parseDBModels()
     {
         $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
         $model_sufix    = '__Model.php';
         $model_len      = strlen( $model_sufix );
-        $this->schemas  = (object) [];
 
         foreach ( $dir as $schema )
         {
@@ -258,6 +266,68 @@ class Autodoc extends \StdClass
         $content    .= "}" . PHP_EOL;
 
         return $content;
+    }
+
+    /**
+     * Captura as rotinas de execução em background.
+     */
+    private function parseRoutines( $path )
+    {
+        $dir            = new \FileSystemIterator( $path );
+        $sufix          = '__Routine.php';
+        $lensufix       = strlen( $sufix );
+
+        foreach ( $dir as $item )
+        {
+            $subpath    = $item->getPathname();
+            $filename   = $item->getFilename();
+            
+            if ( $item->isDir() )
+            {
+                $this->parseRoutines( $subpath );
+                continue;
+            }
+
+            if ( substr( $subpath, -$lensufix ) != $sufix )
+                continue;
+
+            $route          = substr( $subpath, $this->lenserv + 1 );
+            $classname      = 'App\\Routines\\' . substr( $route, 0, -4 );
+            $route          = substr( $route, 0, -$lensufix );
+            $route          = str_replace( '\\', '/', $route );
+            $ref            = new \ReflectionClass( $classname );
+            $comment        = $ref->getDocComment();
+            $props_class    = $ref->getProperties();
+            $props          = [];
+            $props_get      = [
+                'active',
+                'min',
+                'hr',
+                'date',
+                'day',
+                'month',
+            ];
+            
+            foreach ( $props_class as $prop )
+                if ( in_array( $prop->name, $props_get ) )
+                    $props[ $prop->name ] = $prop->getDefaultValue();
+
+            $this->routines[]   = array_merge( [
+                'routine'       => $route,
+                'desc'          => ClassDocParser::getDoc( $comment )->desc,
+            ], $props );
+        }
+    }
+
+    /**
+     * Salva o conteúdo das rotinas.
+     */
+    private function saveRoutines()
+    {
+        $content    = $this->jsonEncode( $this->routines );
+        $filename   = DIR_BASE . '/doc/routines/routines.json';
+        file_put_contents( $filename, $content );
+        $this->sendLog( 'Conclusão da captura das rotinas', 1 );
     }
 
     /**

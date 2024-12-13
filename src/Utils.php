@@ -53,9 +53,26 @@ class Utils
         $response   = preg_replace( '/=> [\r\n] +array\(/', '=> array(', $response );
         $response   = $to_php_file
             ? '<?php' . N . N . 'return ' . $response . ';' . N
-            : '';
+            : $response;
 
         return $response;
+    }
+
+    /**
+     * Método para exportar uma variável.
+     */
+    public static function varExport( $var, $to_php_file = false )
+    {
+        $export = var_export( $var, 1 );
+        $export = preg_replace("/^([ ]*)(.*)/m", '$1$1$2', $export);
+        $array  = preg_split("/\r\n|\n|\r/", $export );
+        $array  = preg_replace(["/\s*array\s\($/", "/\)(,)?$/", "/\s=>\s$/"], [NULL, ']$1', ' => ['], $array);
+        $export = join(PHP_EOL, array_filter(["["] + $array));
+        $export = $to_php_file
+            ? '<?php' . N . N . 'return ' . $export . ';' . N
+            : $export;
+
+        return $export;
     }
 
     /**
