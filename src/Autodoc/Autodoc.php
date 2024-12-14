@@ -130,6 +130,7 @@ class Autodoc extends \StdClass
         $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
         $model_sufix    = '__Model.php';
         $model_len      = strlen( $model_sufix );
+        $binds          = [];
 
         foreach ( $dir as $schema )
         {
@@ -161,12 +162,17 @@ class Autodoc extends \StdClass
                     if ( substr( $filename, 0, 1 ) == '_' )
                         continue;
                     
-                    $entities[] = $this->parseEntity( $filename, $pathname );
+                    $entity     = $this->parseEntity( $filename, $pathname );
+                    $entities[] = $entity->content;
+                    $binds      = array_merge( $binds, $entity->binds );
                 }
             }
 
             $content    .= $entities
                 ? implode( PHP_EOL, $entities ) . PHP_EOL
+                : '';
+            $content    .= $binds
+                ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
                 : '';
             $content    .= '@enduml';
             $filedbmodel = DIR_BASE . '/doc/dbmodels/' . $scname . '.svg';
@@ -191,15 +197,27 @@ class Autodoc extends \StdClass
         $classname      = substr( $pathname, $this->lenbase, -4 );
         $classname      = str_replace( '/', '\\', $classname );
         $ref            = new \ReflectionClass( $classname );
+        $attrs          = $ref->getAttributes();
         $props          = $ref->getProperties();
+        $methods        = $ref->getMethods();
         $cols           = [];
+        $binds          = [];
         $props_parse    = [ 'type', 'desc' ];
 
         $comment        = $ref->getDocComment();
         $comment        = ClassDocParser::getDoc( $comment );
         $entitydesc     = $comment->desc;
-        $methods        = $ref->getMethods();
-        $methods        = $ref->getMethods();
+        $tbname         = $entityname;
+
+        foreach ( $attrs as $attr )
+        {
+            $name   = preg_replace( '@.*\\\@', '', $attr->getName() );
+            if ( $name != 'table' )
+                continue;
+
+            $tbname = $attr->getArguments()[0];
+            break;
+        }
 
         foreach ( $methods as $i => &$method )
         {
@@ -225,6 +243,14 @@ class Autodoc extends \StdClass
 
         foreach ( $props as $prop )
         {
+            if ( $prop->isStatic() && $prop->isProtected() && $prop->getName() == 'fks' )
+            {
+                $fks = $prop->getDefaultValue();
+
+                foreach ( $fks as $fk => $ref )
+                    $binds[] = $tbname . ' }o--|| ' . $ref[ 'table' ];
+            }
+
             if ( !$prop->isPublic() || $prop->isStatic() )
                 continue;
             
@@ -256,7 +282,7 @@ class Autodoc extends \StdClass
             $cols[]     = $col;
         }
 
-        $content    = "entity \"$entityname\" as $entityname {" . PHP_EOL;
+        $content    = "entity \"$entityname\" as $tbname {" . PHP_EOL;
         $content    .= '  ' . $entitydesc . PHP_EOL;
         $content    .= '  --' . PHP_EOL;
         $content    .= implode( PHP_EOL, $cols ) . PHP_EOL;
@@ -265,7 +291,11 @@ class Autodoc extends \StdClass
             : '';
         $content    .= "}" . PHP_EOL;
 
-        return $content;
+        return (object) [
+            'tbname'    => $tbname,
+            'content'   => $content,
+            'binds'     => $binds,
+        ];
     }
 
     /**
