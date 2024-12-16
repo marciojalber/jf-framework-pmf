@@ -565,7 +565,7 @@ class Autodoc extends \StdClass
         foreach ( $this->modules as $name => $module )
         {
             $path = DIR_BASE . '/doc/services/modules/' . $name;
-            $path || mkdir( DIR_BASE . '/doc/services/modules/' . $name );
+            file_exists( $path ) || mkdir( DIR_BASE . '/doc/services/modules/' . $name );
         }
 
         $tot_modules = count( $this->modules );
