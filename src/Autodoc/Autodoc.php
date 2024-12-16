@@ -13,6 +13,16 @@ class Autodoc extends \StdClass
     use PlantUML__Trait;
 
     /**
+     * Lista dos contextos a processar a documentação.
+     */
+    protected $contexts = [];
+
+    /**
+     * Não excluir os arquivos, apenas sobrescrever.
+     */
+    protected $onlyReplaceFiles = 0;
+
+    /**
      * Lista dos esquemas e seus respectivos models.
      */
     protected $schemas = [];
@@ -40,9 +50,17 @@ class Autodoc extends \StdClass
     /**
      * Inicia uma instância do Autodoc.
      */
-    public static function init()
+    public static function init( $args )
     {
-        return new self();
+        $inst = new self();
+        
+        if ( !empty( $args->{'-c'} ) )
+            $inst->contexts = preg_split( '@ *, *@', $args->{'-c'} );
+        
+        if ( property_exists( $args, '-r' ) )
+            $inst->onlyReplaceFiles = 1;
+
+        return $inst;
     }
 
     /**
@@ -52,13 +70,25 @@ class Autodoc extends \StdClass
     {
         $this->config();
         $this->clearPaths();
-        $this->parseDBModels();
-        $this->parseRoutines( DIR_ROUTINES );
-        $this->saveRoutines();
-        $this->parseServices( DIR_SERVICES );
-        $this->sendLog( 'Conclusão dos services', 1 );
-        $this->saveContentFiles();
-        $this->saveModules();
+
+        if ( !$this->contexts || in_array( 'models', $this->contexts ) )
+            $this->parseDBModels();
+
+        if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
+        {
+            $this->parseRoutines( DIR_ROUTINES );
+            $this->saveRoutines();
+        }
+
+        if ( !$this->contexts || in_array( 'domain', $this->contexts ) )
+        {
+            $this->parseServices( DIR_SERVICES );
+            $this->sendLog( 'Conclusão dos services', 1 );
+            $this->saveContentFiles();
+            $this->saveDomain();
+            $this->saveModules();
+        }
+        
         $this->sendLog();
     }
 
@@ -95,8 +125,18 @@ class Autodoc extends \StdClass
      */
     private function clearPaths()
     {
-        $this->clearDocPath( DIR_BASE . '/doc/dbmodels' );
-        $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
+        if ( $this->onlyReplaceFiles )
+            return;
+
+        if ( !$this->contexts || in_array( 'domain', $this->contexts ) )
+            $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
+
+        if ( !$this->contexts || in_array( 'models', $this->contexts ) )
+            $this->clearDocPath( DIR_BASE . '/doc/dbmodels' );
+
+        if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
+            $this->clearDocPath( DIR_BASE . '/doc/routines' );
+
         $this->sendLog( 'Limpeza das pastas realizada', 1 );
     }
 
@@ -175,17 +215,19 @@ class Autodoc extends \StdClass
                 ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
                 : '';
             $content    .= '@enduml';
-            $filedbmodel = DIR_BASE . '/doc/dbmodels/' . $scname . '.svg';
+            $filepath   = DIR_BASE . '/doc/dbmodels/' . $scname . '.svg';
             
             $encoded    = $this->encode( $content );
             $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
-            $content     = file_get_contents( $url );
+            $content    = file_get_contents( $url );
 
-            file_put_contents( $filedbmodel, $content );
-            $this->sendLog( 'Captura do DBModel ' . $scname );
+            if ( $content )
+                file_put_contents( $filepath, $content );
+
+            $this->sendLog( 'Modelagem do DBModel ' . $scname );
         }
 
-        $this->sendLog( 'Conclusão da captura dos DBModel', 1 );
+        $this->sendLog( 'Conclusão da modelagem dos DBModel', 1 );
     }
 
     /**
@@ -521,7 +563,10 @@ class Autodoc extends \StdClass
         ];
 
         foreach ( $this->modules as $name => $module )
-            mkdir( DIR_BASE . '/doc/services/modules/' . $name );
+        {
+            $path = DIR_BASE . '/doc/services/modules/' . $name;
+            $path || mkdir( DIR_BASE . '/doc/services/modules/' . $name );
+        }
 
         $tot_modules = count( $this->modules );
 
@@ -599,6 +644,35 @@ class Autodoc extends \StdClass
         $content    = $this->jsonEncode( $totals );
         $file       = DIR_BASE . '/doc/services/totals.json';
         file_put_contents( $file, $content );
+    }
+
+    /**
+     * Salva a modelagem do domínio.
+     */
+    private function saveDomain()
+    {
+        $domain_uml = "@startuml
+!define DARKBLUE
+!includeurl https://raw.githubusercontent.com/Drakemor/RedDress-PlantUML/master/style.puml" . PHP_EOL . PHP_EOL;
+
+        foreach ( $this->modules as $item )
+        {
+            $domain_uml .= PHP_EOL . "entity \"{$item->title}\" as $item->route {" . PHP_EOL;
+            $domain_uml .= '  --' . PHP_EOL;
+            $domain_uml .= '  ' . implode( PHP_EOL . '  - ', $item->text ) . PHP_EOL . '}' . PHP_EOL;
+        }
+
+        $domain_uml .= PHP_EOL . '@enduml';
+        $filepath   = DIR_BASE . '/doc/services/domain.svg';
+
+        $encoded    = $this->encode( $domain_uml );
+        $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
+        $domain_uml = file_get_contents( $url );
+        
+        if ( $domain_uml )
+            file_put_contents( $filepath, $domain_uml );
+        
+        $this->sendLog( 'Modelagem do domínio concluída', 1 );
     }
 
     /**

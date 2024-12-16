@@ -28,7 +28,7 @@ final class App
     /**
      * Inicia a aplicação.
      */
-    public static function autodoc( $dirbase = null )
+    public static function autodoc( $args, $dirbase = null )
     {
         if ( self::$running )
             return;
@@ -39,7 +39,18 @@ final class App
         self::defines( $dirbase, 1 );
         self::configPHPEnv( 1 );
 
-        Autodoc::init()->run();
+        $new_args = (object) [];
+        array_shift( $args );
+
+        foreach ( $args as $arg )
+        {
+            $parts          = explode( ':', $arg );
+            $key            = $parts[0];
+            $val            = $parts[1] ?? null;
+            $new_args->$key = $val;
+        }
+
+        Autodoc::init( $new_args )->run();
     }
 
     /**
