@@ -30,11 +30,23 @@ class PHPCompiler
         date_default_timezone_set( 'America/Sao_Paulo' );
 		$instance 				= new self();
 		$instance->pharTarget 	= $_SERVER[ 'QUERY_STRING' ] == 'jfc'
-			? ['jfc.phar', 'Terminal.php']
-			: ['jf-pmf.phar', 'App.php'];
-		$phar_filename 			= $instance->pharTarget[0];
+			? ['jfc', 'Terminal.php']
+			: ['jf-pmf', 'App.php'];
+		$file_prefix 			= $instance->pharTarget[0];
+		$phar_filename 			= __DIR__ . '/dist/' . $file_prefix;
+		$file_startlen 			= strlen( $file_prefix );
+		$phar_filename 			.= '-' . date( 'Ymd-his' ). '.phar';
 
-		file_exists( $phar_filename ) && unlink( $phar_filename );
+		$dir 					= new \FileSystemIterator( __DIR__ . '/dist' );
+
+		foreach ( $dir as $item )
+		{
+			if ( $item->isDir() )
+				continue;
+
+			if ( substr( $item->getFilename(), 0, $file_startlen ) == $file_prefix )
+				unlink( $item->getPathname() );
+		}
 
 		$instance->phar 		= new \Phar( $phar_filename, 0 );
 		
