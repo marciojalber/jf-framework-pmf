@@ -104,7 +104,7 @@ class Autodoc extends \StdClass
         $this->schemas  = (object) [];
         $paths          = [
             DIR_BASE . '/doc',
-            DIR_BASE . '/doc/dbmodels',
+            DIR_BASE . '/doc/models',
             DIR_BASE . '/doc/routines',
             DIR_BASE . '/doc/services',
             DIR_BASE . '/doc/services/modules',
@@ -132,7 +132,7 @@ class Autodoc extends \StdClass
             $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
 
         if ( !$this->contexts || in_array( 'models', $this->contexts ) )
-            $this->clearDocPath( DIR_BASE . '/doc/dbmodels' );
+            $this->clearDocPath( DIR_BASE . '/doc/models' );
 
         if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/routines' );
@@ -215,7 +215,7 @@ class Autodoc extends \StdClass
                 ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
                 : '';
             $content    .= '@enduml';
-            $filepath   = DIR_BASE . '/doc/dbmodels/' . $scname . '.svg';
+            $filepath   = DIR_BASE . '/doc/models/' . $scname . '.svg';
             
             $encoded    = $this->encode( $content );
             $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";

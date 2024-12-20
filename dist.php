@@ -35,7 +35,7 @@ class PHPCompiler
 		$file_prefix 			= $instance->pharTarget[0];
 		$phar_filename 			= __DIR__ . '/dist/' . $file_prefix;
 		$file_startlen 			= strlen( $file_prefix );
-		$phar_filename 			.= '-' . date( 'Ymd-his' ). '.phar';
+		$phar_filename 			.= '-' . date( 'Ymd-His' ). '.phar';
 
 		$dir 					= new \FileSystemIterator( __DIR__ . '/dist' );
 

@@ -62,6 +62,7 @@ class CSV_Responder extends Responder
 
         header( "Content-Disposition: attachment; filename=$filename" );
         header( "Content-Length: " . $length );
+        echo "\xEF\xBB\xBF"; // UTF-8 BOM
         echo $content;
     }
 

@@ -198,7 +198,7 @@ final class App
      */
     private static function defineProductPaths()
     {
-        $products_path      = Config::get( 'products.path', 'products' );
+        $products_path      = Config::get( 'app.productsPath', 'products' );
         $products_path      = realpath( DIR_BASE . '/' . $products_path );
         $products_path      = $products_path
             ? $products_path
