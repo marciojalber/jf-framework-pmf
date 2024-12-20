@@ -54,6 +54,8 @@ class Feature extends \StdClass
      */
     public function __destruct()
     {
+        $this->_ticks       = [];
+
         if ( !JF_TESTING && Config::get( 'app.registerRequest' ) )
             $this->registerRequest();
     }
@@ -342,7 +344,7 @@ class Feature extends \StdClass
     public function tick( $name = null )
     {
         $microtime          = microtime(1);
-        $tick               = $microtime - $this->_microtime;
+        $tick               = round( $microtime - $this->_microtime, 6 );
         $this->_ticks[]     = $name
             ? [ $tick, $name ]
             : $tick;
@@ -354,6 +356,11 @@ class Feature extends \StdClass
      */
     public function ticks()
     {
-        return $this->_ticks;
+        $time   = round( microtime(1) - $_SERVER[ 'REQUEST_TIME_FLOAT' ], 6 );
+        $item   = [$time, 'Conclusão'];
+        $res    = $this->_ticks;
+        $res[]  = $item;
+        
+        return $res;
     }
 }
