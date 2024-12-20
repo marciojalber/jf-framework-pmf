@@ -585,7 +585,7 @@ class DTO extends \StdClass
         $column_exists              = array_key_exists( $key, $class::structure() );
         $value_changed              = array_key_exists( $key, $this->_changed );
 
-        if ( $record_is_saved && $column_exists && !$value_changed )
+        if ( $column_exists && !$value_changed )
             $this->_changed[ $key ] = $old_value;
 
         return $this;
@@ -685,18 +685,17 @@ class DTO extends \StdClass
      */
     public function save()
     {
-        if ( !$this->changed() && $this->msgOnUnchanged )
+        $created = $this->_status == 'created';
+
+        if ( !$created && !$this->changed() && $this->msgOnUnchanged )
             throw new Info( $this->msgOnUnchanged );
 
-        if ( !$this->changed() )
+        if ( !$created && !$this->changed() )
             return false;
 
-        if ( $this->_status == 'created' )
-            $values         = $this->values();
-
-        if ( $this->_status != 'created' )
-            $values         = $this->changes();
-
+        $values             = $created
+            ? $this->values()
+            : $this->changes();
         $key                = static::primaryKey();
         $count              = static::dao()
             ->update( $this->$key, $key, $values )
