@@ -234,6 +234,12 @@ class DTO extends \StdClass
             if ( $val === null || $val === '' )
                 continue;
 
+            if ( $prop->type == 'int' && is_string( $this->$key ) && is_numeric( $this->$key ) )
+                $this->$key = (int) $this->$key;
+
+            if ( $prop->type == 'float' && is_string( $this->$key ) && is_numeric( $this->$key ) )
+                $this->$key = (float) $this->$key;
+
             if ( $prop->type == 'str' && !empty( $prop->trim ) )
                 $this->$key = preg_replace( '@[\s\t]+@', ' ', trim( $this->$key ) );
         }
@@ -585,7 +591,7 @@ class DTO extends \StdClass
         $column_exists              = array_key_exists( $key, $class::structure() );
         $value_changed              = array_key_exists( $key, $this->_changed );
 
-        if ( $column_exists && !$value_changed )
+        if ( $record_is_saved && $column_exists && !$value_changed )
             $this->_changed[ $key ] = $old_value;
 
         return $this;
@@ -697,6 +703,20 @@ class DTO extends \StdClass
             ? $this->values()
             : $this->changes();
         $key                = static::primaryKey();
+
+        if ( $created )
+        {
+            $this->_changed = [];
+            $item_saved     = static::dao()
+                ->insert( $this->values() )
+                ->one();
+
+            foreach ( $item_saved as $key => $val )
+                $this->$key = $val;
+
+            return $this;
+        }
+
         $count              = static::dao()
             ->update( $this->$key, $key, $values )
             ->count();
