@@ -1,84 +1,94 @@
 <?php
 
+PHPCompiler::run();
+
 class PHPCompiler
 {
 	/**
 	 * Arquivo de destino do PHAR e classe do stub.
 	 */
-	protected $pharTarget;
+	protected static $pharTarget = [
+		['jfc', 'Terminal.php'],
+		['jf-pmf', 'App.php']
+	];
 
 	/**
 	 * Arquivo PHAR.
 	 */
-	protected $phar;
+	protected $phars = [];
 
 	/**
-	 * Arquivo PHAR.
+	 * Pasta de origem dos arquivos.
 	 */
 	protected $basepath;
 
 	/**
-	 * Arquivo PHAR.
+	 * Pasta de destino dos arquivos.
 	 */
 	protected $targetpath;
 
 	/**
 	 * Executa a compilação
 	 */
-	public static function init()
+	public static function run()
 	{
-        date_default_timezone_set( 'America/Sao_Paulo' );
-		$instance 				= new self();
-		$instance->pharTarget 	= $_SERVER[ 'QUERY_STRING' ] == 'jfc'
-			? ['jfc', 'Terminal.php']
-			: ['jf-pmf', 'App.php'];
-		$file_prefix 			= $instance->pharTarget[0];
-		$phar_filename 			= __DIR__ . '/dist/' . $file_prefix;
-		$file_startlen 			= strlen( $file_prefix );
-		$phar_filename 			.= '-' . date( 'Ymd-His' ). '.phar';
+		$ini 				= date( 'd/m/Y H:i:s' );
+		$antes 				= microtime(1);
+		$instance 			= new self();
+		
+		$instance->prepareProcess();
+		$instance->clearPath( __DIR__ . '/dist' );
+		$instance->addPath( $instance->basepath );
 
-		$dir 					= new \FileSystemIterator( __DIR__ . '/dist' );
-
-		foreach ( $dir as $item )
+		foreach ( self::$pharTarget as $pharTarget )
 		{
-			if ( $item->isDir() )
-				continue;
-
-			if ( substr( $item->getFilename(), 0, $file_startlen ) == $file_prefix )
-				unlink( $item->getPathname() );
+			$file_prefix 	= $pharTarget[0];
+			$stub 			= $pharTarget[1];
+			$filename 		= $file_prefix . '-' . $instance->now . '.phar';
+			$phar 			= new \Phar( __DIR__ . '/dist/' . $filename, 0 );
+			
+			$instance->compile( $phar, $stub );
 		}
 
-		$instance->phar 		= new \Phar( $phar_filename, 0 );
-		
-		$instance->phar->canCompress( 1 );
-		$instance->phar->compressFiles( \Phar::GZ );
+		$instance->clearPath( $instance->targetpath, 1 );
 
-		return $instance;
+		$fim 				= date( 'd/m/Y H:i:s' );
+		$duracao 			= round( microtime(1) - $antes, 2 );
+
+		header( 'Content-Type: application/json' );
+		echo 'ini     : ' . $ini . PHP_EOL;
+		echo 'fim     : ' . $fim . PHP_EOL;
+		echo "duracao : $duracao segundo(s)";
 	}
 
 	/**
-	 * Executa a compilação
+	 * Prepara o processo.
 	 */
-	public function compile()
+	public function prepareProcess()
 	{
+        date_default_timezone_set( 'America/Sao_Paulo' );
+		
+		$this->now 			= date( 'Ymd-His' );
 		$this->basepath 	= str_replace( '\\', '/', __DIR__ . '/src' );
 		$this->targetpath 	= str_replace( '\\', '/', __DIR__ . '/_src' );
 
 		if ( !file_exists( $this->basepath ) )
 			throw new \Exception( "Pasta [$this->basepath] não encontrada." );
+	}
 
-		$this->phar->startBuffering();
-		$this->addPath( $this->basepath );
-		$this->phar->buildFromDirectory( $this->targetpath );
-		$this->clearPath( $this->targetpath );
+	/**
+	 * Executa a compilação.
+	 */
+	public function compile( $phar, $stub )
+	{
+		$phar->canCompress( 1 );
+		$phar->compressFiles( \Phar::GZ );
+		$phar->startBuffering();
+		$phar->buildFromDirectory( $this->targetpath );
+		$phar->stopBuffering();
 
-		$this->phar->stopBuffering();
-
-		$def_stub = $this->phar->createDefaultStub( $this->pharTarget[1] );
-		$this->phar->setStub( $def_stub );
-
-		header( 'Content-Type: application/json' );
-		echo 'fim: ' . date( 'd/m/Y H:i:s' );
+		$def_stub = $phar->createDefaultStub( $stub );
+		$phar->setStub( $def_stub );
 	}
 
 	/**
@@ -116,18 +126,18 @@ class PHPCompiler
 	/**
 	 * Adiciona arquivos compilados de uma pasta.
 	 */
-	protected function clearPath( $path )
+	protected function clearPath( $path, $remove_dir = 0 )
 	{
 		$dir = new \FilesystemIterator( $path );
 
 		foreach ( $dir as $item )
 		{
 			$item->isDir()
-				? $this->clearPath( $item->getPathname() )
+				? $this->clearPath( $item->getPathname(), 1 )
 				: unlink( $item->getPathname() );
 		}
 
-		rmdir( $path );
+		$remove_dir && rmdir( $path );
 	}
 
 	/**
@@ -315,5 +325,3 @@ class PHPCompiler
 	    return $new;
 	}
 }
-
-PHPCompiler::init()->compile();
