@@ -448,7 +448,10 @@ final class PageMaker extends \StdClass
         if ( file_exists( $file_template ) )
         {
             $template                       = file_get_contents( $file_template );
-            $template                       = \App\App::minifyHTML( $template );
+
+            if ( function_exists( 'minifyHTML' ) )
+                $template                   = minifyHTML( $template );
+
             $wc_content                     = str_replace( '{$template}', $template, $wc_content );
             $this->depends[ $depend_html ]  = filemtime( $file_template );
         }
@@ -470,8 +473,8 @@ final class PageMaker extends \StdClass
             return strtoupper( $matches[ 1 ] );
         }, $tag );
 
-        $wc_content = \App\App::registerWebComponent( $tag, $js_name, $wc_content );
-        $wc_content = \App\App::minifyJS( $wc_content );
+        $wc_content = registerWebComponent( $tag, $wc_content, $js_name );
+        $wc_content = minifyJS( $wc_content );
         $response[] = $wc_content;
         
         return implode( N, $response );

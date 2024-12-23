@@ -129,7 +129,7 @@ class Log
             ? $_SERVER[ 'HTTP_REFERER' ]
             : '';
         $line           = $this->error[ 'line' ];
-        $extra          = method_exists( '\\App\\App', 'addExceptionData' )
+        $extra          = class_exists( '\\App\\App' ) && method_exists( '\\App\\App', 'addExceptionData' )
             ? (array) \App\App::addExceptionData()
             : [];
 

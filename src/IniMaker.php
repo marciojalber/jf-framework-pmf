@@ -68,9 +68,10 @@ class IniMaker
             }
 
             $key        = str_pad( $content[ 1 ], $this->keySize, ' ' );
-            $text       = is_numeric( $content[ 2 ] )
-                ? $content[ 2 ]
-                : '"' . addslashes( $content[ 2 ] ) . '"';
+            $text       = $content[ 2 ] ?? '';
+            $text       = is_numeric( $text )
+                ? $text
+                : '"' . addslashes( $text ) . '"';
             $response[] = $key . ' = ' . $text;
         }
 

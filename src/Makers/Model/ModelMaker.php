@@ -306,8 +306,8 @@ class ModelMaker
     {
         $parts  = preg_split( '@ in @i', $val );
         $key    = preg_replace( '@`@i', '', $parts[0] );
-        $opts   = preg_replace( '@\( *\'| *\'\)@i', '', $parts[1] );
-        $opts   = preg_split( "@', *'@", $opts );
+        $opts   = preg_replace( '@\( *\'?| *\'?\)@i', '', $parts[1] );
+        $opts   = preg_split( "@'?, *'?@", $opts );
         
         $this->tableChecks->$key = $opts;
     }
@@ -471,7 +471,15 @@ class ModelMaker
             }
             
             if ( !empty( $prop->opts ) )
-                $prop->opts         = "['" . implode( "','", $prop->opts ) . "']";
+            {
+                foreach ( $prop->opts as &$item )
+                {
+                    $item           = !is_numeric( $item ) || !in_array( $prop->type, ['int', 'float'] )
+                        ? "'$item'"
+                        : $item;
+                }
+                $prop->opts         = '[' . implode( ',', $prop->opts ) . ']';
+            }
 
             if ( $data->EXTRA == 'auto_increment' )
                 $auto_inc           = $name;
@@ -557,7 +565,7 @@ class ModelMaker
     {
         $cols           = [];
         $void_props     = [ 'priKey', 'required', 'unsigned' ];
-        
+
         foreach ( $this->props as $colname => $props )
         {
             $col        = [];
