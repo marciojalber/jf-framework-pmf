@@ -33,6 +33,11 @@ final class PageMaker extends \StdClass
     protected $plugins              = [];
 
     /**
+     * Plugins da página.
+     */
+    protected $doc                  = [];
+
+    /**
      * Rota da página.
      */
     protected $data                 = null;
@@ -198,9 +203,28 @@ final class PageMaker extends \StdClass
             'depends'       => $this->depends,
             'html'          => $this->html,
             'parts'         => $this->parts,
+            'doc'           => implode( PHP_EOL, $this->doc ),
         ];
 
         return (object) $response;
+    }
+    
+    /**
+     * Monta uma página HTML.
+     */
+    public function docSession( $name )
+    {
+        $this->doc[] = isset( $this->doc[ 0 ] )
+            ? PHP_EOL . $name
+            : $name;
+    }
+    
+    /**
+     * Monta uma página HTML.
+     */
+    public function doc( $text )
+    {
+        $this->doc[] = '- ' . $text;
     }
     
     /**

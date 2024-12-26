@@ -15,7 +15,7 @@ class Autodoc extends \StdClass
     /**
      * Lista dos contextos a processar a documentação.
      */
-    protected $contexts = [];
+    protected $contexts         = [];
 
     /**
      * Não excluir os arquivos, apenas sobrescrever.
@@ -25,27 +25,32 @@ class Autodoc extends \StdClass
     /**
      * Lista dos esquemas e seus respectivos models.
      */
-    protected $schemas = [];
+    protected $schemas          = [];
 
     /**
      * Lista dos serviços encontrados.
      */
-    protected $services = [];
+    protected $services         = [];
 
     /**
      * Lista as rotinas encontradas.
      */
-    protected $routines = [];
+    protected $routines         = [];
 
     /**
      * Conteúdo da documentação.
      */
-    protected $doc      = [];
+    protected $doc              = [];
+
+    /**
+     * Módulos das páginas.
+     */
+    protected $pageModules      = [];
 
     /**
      * Módulos informados.
      */
-    protected $modules  = [];
+    protected $modules          = [];
 
     /**
      * Inicia uma instância do Autodoc.
@@ -54,11 +59,14 @@ class Autodoc extends \StdClass
     {
         $inst = new self();
         
-        if ( !empty( $args->{'-c'} ) )
-            $inst->contexts = preg_split( '@ *, *@', $args->{'-c'} );
+        if ( property_exists( $args, '-h' ) )
+            return $inst->help();
         
         if ( property_exists( $args, '-r' ) )
             $inst->onlyReplaceFiles = 1;
+        
+        if ( !empty( $args->{'-c'} ) )
+            $inst->contexts = preg_split( '@ *, *@', $args->{'-c'} );
 
         return $inst;
     }
@@ -72,7 +80,14 @@ class Autodoc extends \StdClass
         $this->clearPaths();
 
         if ( !$this->contexts || in_array( 'models', $this->contexts ) )
-            $this->parseDBModels();
+            $this->parseModels();
+
+        if ( !$this->contexts || in_array( 'pages', $this->contexts ) )
+        {
+            $total = $this->parsePages( DIR_VIEWS );
+            $this->savePageModules();
+            $this->savePageTotals( $total );
+        }
 
         if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
         {
@@ -101,10 +116,13 @@ class Autodoc extends \StdClass
         $this->last     = $this->start;
         $this->lenbase  = strlen( DIR_BASE ) + 1;
         $this->lenserv  = strlen( DIR_SERVICES );
+        $this->lenviews = strlen( DIR_VIEWS );
         $this->schemas  = (object) [];
         $paths          = [
             DIR_BASE . '/doc',
             DIR_BASE . '/doc/models',
+            DIR_BASE . '/doc/pages',
+            DIR_BASE . '/doc/pages/modules',
             DIR_BASE . '/doc/routines',
             DIR_BASE . '/doc/services',
             DIR_BASE . '/doc/services/modules',
@@ -133,6 +151,9 @@ class Autodoc extends \StdClass
 
         if ( !$this->contexts || in_array( 'models', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/models' );
+
+        if ( !$this->contexts || in_array( 'pages', $this->contexts ) )
+            $this->clearDocPath( DIR_BASE . '/doc/pages/modules' );
 
         if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/routines' );
@@ -165,7 +186,7 @@ class Autodoc extends \StdClass
     /**
      * Captura os modelos representativos das tabelas.
      */
-    private function parseDBModels()
+    private function parseModels()
     {
         $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
         $model_sufix    = '__Model.php';
@@ -338,6 +359,110 @@ class Autodoc extends \StdClass
             'content'   => $content,
             'binds'     => $binds,
         ];
+    }
+
+    /**
+     * Captura as rotinas de execução em background.
+     */
+    private function parsePages( $path )
+    {
+        static $docpages    = DIR_BASE . '/doc/pages/';
+        static $totals      = null;
+
+        if ( !$totals )
+        {
+            $totals      = (object) [
+                'pages'         => 0,
+                'helps'         => 0,
+                'autodoc'       => 0,
+            ];
+        }
+
+        $dir = new \FileSystemIterator( $path );
+
+        foreach ( $dir as $item )
+        {
+            $subpath    = $item->getPathname();
+            $filename   = $item->getFilename();
+            $route      = substr( $subpath, $this->lenviews + 1 );
+            $route      = str_replace( '\\', '/', $route );
+            
+            if ( $item->isDir() )
+            {
+                $this->parsePages( $subpath );
+                continue;
+            }
+
+            if ( $filename == 'autodoc-module' )
+            {
+                $route  = substr( $route, 0, -15 );
+                $this->pageModules[ $route ] = file_get_contents( $subpath );
+                continue;
+            }
+
+            if ( $filename != 'view.php' )
+                continue;
+
+            ++$totals->pages;
+            $subpathbase            = dirname( $subpath );
+            $pagehelp               = $subpathbase . '/pagehelp.php';
+            $pageini                = $subpathbase . '/view.ini';
+            $pagedoc                = $subpathbase . '/_view.autodoc';
+            $ini                    = json_decode( json_encode( parse_ini_file( $pageini, 1 ) ) );
+            $content                = (object) [];
+            $content->route         = substr( $route, 0, -9 );
+            $content->help          = '';
+            $content->parts         = '';
+
+            if ( file_exists( $pagehelp ) )
+            {
+                $content->help      = file_get_contents( $pagehelp );
+                ++$totals->helps;
+            }
+
+            if ( file_exists( $pagedoc ) )
+            {
+                $content->parts     = file_get_contents( $pagedoc );
+                ++$totals->autodoc;
+            }
+
+            $content->permissions   = isset( $ini->PERMISSIONS )
+                ? $ini->PERMISSIONS
+                : [];
+            $content->data          = isset( $ini->DATA )
+                ? $ini->DATA
+                : [];
+            
+            $route_filename = str_replace( '/', '.', $route );
+            $filetarget     = "$docpages/modules/$route_filename.json";
+            $content        = $this->jsonEncode( $content );
+            
+            file_put_contents( $filetarget, $content );
+        }
+
+        return $totals;
+    }
+
+    /**
+     * Salva os módulos de página.
+     */
+    private function savePageModules()
+    {
+        $content    = $this->jsonEncode( $this->pageModules );
+        $filename   = DIR_BASE . '/doc/pages/modules-list.json';
+
+        file_put_contents( $filename, $content );
+    }
+
+    /**
+     * Salva os totais das páginas.
+     */
+    private function savePageTotals( $totals )
+    {
+        $content    = $this->jsonEncode( $totals );
+        $filename   = DIR_BASE . '/doc/pages/totals.json';
+        
+        file_put_contents( $filename, $content );
     }
 
     /**
@@ -658,7 +783,6 @@ class Autodoc extends \StdClass
         foreach ( $this->modules as $item )
         {
             $domain_uml .= PHP_EOL . "entity \"{$item->title}\" as $item->route {" . PHP_EOL;
-            $domain_uml .= '  --' . PHP_EOL;
             $domain_uml .= '  ' . implode( PHP_EOL . '  - ', $item->text ) . PHP_EOL . '}' . PHP_EOL;
         }
 
@@ -731,5 +855,37 @@ class Autodoc extends \StdClass
 
         if ( $fim )
             echo "-- FIM --". PHP_EOL;
+    }
+
+    /**
+     * Envia ajuda de uso da ferramenta para o cliente.
+     */
+    private function help()
+    {
+        $res = <<<RES
+
+Ajuda de uso do JF-AUTODOC:
+===========================
+
+Este recurso cria documentação automática para a aplicação.
+Modo de uso: php cmd/autodoc.php [-r] [-c:CONTEXTS]
+
+
+-r   ONLY REPLACE
+     Sobrescreve os arquivos existentes com os novos gerados e preserva o restante.
+
+-c   CONTEXTS
+     Monta documentação apenas dos contextos informados.
+     Deve-se informar os contextos separados por ",". Ex: domain,models
+     Segue lista dos contextos permitidos:
+
+     domain   - captura os domínios de negócio e serviços do backend
+     models   - captura os modelos representativos dos bancos-de-dados e suas tabelas
+     pages    - captura o conteúdo e estrutura das páginas
+     routines - captura os dados das rotinas
+
+RES;
+        echo $res;
+        exit;
     }
 }

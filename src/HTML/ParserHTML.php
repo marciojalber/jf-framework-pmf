@@ -77,20 +77,21 @@ final class ParserHTML
      */
     public static function parseView( $route )
     {
-        $maker      = new PageMaker( $route );
-        $result     = $maker->makePage();
-        $new_parse  = self::prepareParseLog( $route, $result->depends );
+        $maker          = new PageMaker( $route );
+        $result         = $maker->makePage();
+        $new_parse      = self::prepareParseLog( $route, $result->depends );
 
         self::makePagePath( $route );
-        $page_path  = self::getPagePath( $route );
-        $log_path   = self::path( $route, '_view.build' );
-        $parts_path = self::path( $route, '_view.parts' );
-
+        $page_path      = self::getPagePath( $route );
+        $log_path       = self::path( $route, '_view.build' );
+        $parts_path     = self::path( $route, '_view.parts' );
+        $doc_path       = self::path( $route, '_view.autodoc' );
         $pretty_json    = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES;
 
         file_put_contents( $page_path, $result->html );
         file_put_contents( $log_path, json_encode( $new_parse, $pretty_json ) );
         file_put_contents( $parts_path, json_encode( $result->parts, $pretty_json ) );
+        file_put_contents( $doc_path, $result->doc );
     }
 
     /**
