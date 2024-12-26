@@ -191,7 +191,6 @@ class Autodoc extends \StdClass
         $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
         $model_sufix    = '__Model.php';
         $model_len      = strlen( $model_sufix );
-        $binds          = [];
 
         foreach ( $dir as $schema )
         {
@@ -199,7 +198,8 @@ class Autodoc extends \StdClass
                 continue;
 
             $scname         = $schema->getFilename();
-            $content        = "@startuml
+            $binds          = [];
+            $puml           = "@startuml
 !define DARKBLUE
 !includeurl https://raw.githubusercontent.com/Drakemor/RedDress-PlantUML/master/style.puml" . PHP_EOL . PHP_EOL;
             $schema         = new \FileSystemIterator( $schema );
@@ -229,21 +229,25 @@ class Autodoc extends \StdClass
                 }
             }
 
-            $content    .= $entities
+            $puml       .= $entities
                 ? implode( PHP_EOL, $entities ) . PHP_EOL
                 : '';
-            $content    .= $binds
+            $puml       .= $binds
                 ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
                 : '';
-            $content    .= '@enduml';
-            $filepath   = DIR_BASE . '/doc/models/' . $scname . '.svg';
+            $puml       .= '@enduml';
+            $content    = $puml;
             
             $encoded    = $this->encode( $content );
             $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
             $content    = file_get_contents( $url );
+            $filepath   = $content
+                ? DIR_BASE . '/doc/models/' . $scname . '.svg'
+                : DIR_BASE . '/doc/models/' . $scname . '.puml';
 
-            if ( $content )
-                file_put_contents( $filepath, $content );
+            $content
+                ? file_put_contents( $filepath, $content )
+                : file_put_contents( $filepath, $puml );
 
             $this->sendLog( 'Modelagem do DBModel ' . $scname );
         }
@@ -331,8 +335,10 @@ class Autodoc extends \StdClass
                     $val        = $attr->getArguments()[0] ?? null;
 
                     if ( $name == 'priKey' )
+                    {
                         $pk = ' <<PK>>';
                         continue;
+                    }
 
                     if ( !in_array( $name, $props_parse ) )
                         continue;
@@ -868,21 +874,22 @@ Ajuda de uso do JF-AUTODOC:
 ===========================
 
 Este recurso cria documentação automática para a aplicação.
-Modo de uso: php cmd/autodoc.php [-r] [-c:CONTEXTS]
+Modo de uso: \e[33mphp cmd/autodoc.php\e[0m [-r] [-c:CONTEXTS]
 
-
--r   ONLY REPLACE
+\e[33m-r\e[0m   ONLY REPLACE
      Sobrescreve os arquivos existentes com os novos gerados e preserva o restante.
 
--c   CONTEXTS
+\e[33m-c\e[0m   CONTEXTS
      Monta documentação apenas dos contextos informados.
-     Deve-se informar os contextos separados por ",". Ex: domain,models
+     Deve-se informar os contextos separados por ",". Ex: \e[33m-c:domain,models\e[0m
      Segue lista dos contextos permitidos:
 
-     domain   - captura os domínios de negócio e serviços do backend
-     models   - captura os modelos representativos dos bancos-de-dados e suas tabelas
-     pages    - captura o conteúdo e estrutura das páginas
-     routines - captura os dados das rotinas
+     \e[36mdomain\e[0m   - captura os domínios de negócio e serviços do backend
+     \e[36mmodels\e[0m   - captura os modelos representativos dos bancos-de-dados e suas tabelas
+     \e[36mpages\e[0m    - captura o conteúdo e estrutura das páginas
+     \e[36mroutines\e[0m - captura os dados das rotinas
+
+Exemplo de uso: \e[33mphp cmd/autodoc.php -r -c:\e[36mdomain,models\e[0m
 
 RES;
         echo $res;
