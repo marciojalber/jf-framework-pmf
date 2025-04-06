@@ -33,9 +33,19 @@ final class PageMaker extends \StdClass
     protected $plugins              = [];
 
     /**
-     * Plugins da página.
+     * Serviços da página.
+     */
+    protected $services             = [];
+
+    /**
+     * Documentação da página.
      */
     protected $doc                  = [];
+
+    /**
+     * Partes nomeadas da documentação.
+     */
+    protected $docNames             = [];
 
     /**
      * Rota da página.
@@ -106,7 +116,7 @@ final class PageMaker extends \StdClass
         {
             $this->data         = (object) Config::get( 'doc.data' );
             $this->config       = (object) [
-                'layout'    => Config::get( 'doc.default_layout', 'layout' ),
+                'layout'    => Config::get( 'doc.defaultLayout', 'layout' ),
             ];
             $this->permissions  = [];
             $this->html         = $route_content;
@@ -124,7 +134,7 @@ final class PageMaker extends \StdClass
         ];
 
         $this->route        = $route_content;
-        $this->config       = [ 'layout' => Config::get( 'ui.default_layout', 'main' ) ];
+        $this->config       = [ 'layout' => Config::get( 'ui.defaultLayout', 'main' ) ];
         $this->permissions  = [];
         $this->data         = array_merge( $data, (array) Config::get( 'ui.data' ) );
     }
@@ -168,12 +178,16 @@ final class PageMaker extends \StdClass
             $this->data         = isset( $ini[ 'DATA' ] )
                 ? array_merge( (array) $this->data, $ini[ 'DATA' ] )
                 : $this->data;
+            $this->services     = isset( $ini[ 'SERVICES' ] )
+                ? array_merge( (array) $this->services, $ini[ 'SERVICES' ] )
+                : $this->services;
         }
 
         $this->config       = json_decode( json_encode( $this->config ) );
         $this->permissions  = json_decode( json_encode( $this->permissions ) );
         $this->plugins      = json_decode( json_encode( $this->plugins ) );
         $this->data         = json_decode( json_encode( $this->data ) );
+        $this->services     = json_decode( json_encode( (object) $this->services ) );
         $this->dateTime     = date( 'Y-m-d H:i:s' );
         $this->partsPoint[] = 'view.php';
         $this->parts        = [ 'view.php' => [] ];
@@ -204,6 +218,7 @@ final class PageMaker extends \StdClass
             'html'          => $this->html,
             'parts'         => $this->parts,
             'doc'           => implode( PHP_EOL, $this->doc ),
+            'docNames'      => $this->docNames,
         ];
 
         return (object) $response;
@@ -214,17 +229,21 @@ final class PageMaker extends \StdClass
      */
     public function docSession( $name )
     {
-        $this->doc[] = isset( $this->doc[ 0 ] )
-            ? PHP_EOL . $name
-            : $name;
+        if ( isset( $this->doc[ 0 ] ) )
+            $this->doc[] = '';
+
+        $this->doc[] = $name;
     }
     
     /**
      * Monta uma página HTML.
      */
-    public function doc( $text )
+    public function doc( $text, $name = null )
     {
-        $this->doc[] = '- ' . $text;
+        $this->doc[]                    = '- ' . $text;
+        
+        if ( $name )
+            $this->docNames[ $name ]    = $text;
     }
     
     /**
@@ -264,6 +283,7 @@ final class PageMaker extends \StdClass
         $updates    = Utils::var_export( $minified->updates, true );
         file_put_contents( $filepath, $minified->content );
         file_put_contents( $file_monitor, $updates );
+        ParserHTML::duplicateFile( $filepath );
     }
 
     /**
@@ -290,12 +310,19 @@ final class PageMaker extends \StdClass
     }
 
     /**
-     * Inclue os dados do controller na página.
+     * Retorna os dados declarados para a página.
      */
-    public function data( $data_name )
+    public function data()
     {
-        $data = json_encode( $this->data );
-        return "<script>var {$data_name} = {$data}</script>";
+        return json_encode( $this->data );
+    }
+
+    /**
+     * Retorna os serviços declarados para a página.
+     */
+    public function services()
+    {
+        return json_encode( $this->services );
     }
 
     /**
@@ -421,6 +448,7 @@ final class PageMaker extends \StdClass
         $wc_file        = $wc_path . '/webcomponents.js';
         $wc_link        = basename( $this->route ) . '/webcomponents.js';
         file_put_contents( $wc_file, $wc_content );
+        ParserHTML::duplicateFile( $wc_file );
 
         $this->html     = str_replace( "{{wc_$this->wcToken}}", "<script src='$wc_link'></script>", $this->html );
     }
@@ -497,9 +525,20 @@ final class PageMaker extends \StdClass
             return strtoupper( $matches[ 1 ] );
         }, $tag );
 
-        $wc_content = registerWebComponent( $tag, $wc_content, $js_name );
-        $wc_content = minifyJS( $wc_content );
-        $response[] = $wc_content;
+        $wc_content     = registerWebComponent( $tag, $wc_content, $js_name );
+        
+        if ( function_exists( 'minifyJS' ) )
+        {
+            set_exception_handler( function( $error ) {
+                print_r($error);exit;
+                $msg = 'Erro ao executar a função de minificação Javascript (minifyJS): ' . $error->getMessage();
+                die( $msg );
+            });
+            
+            $wc_content = minifyJS( $wc_content );
+        }
+
+        $response[]     = $wc_content;
         
         return implode( N, $response );
     }

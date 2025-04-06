@@ -69,6 +69,9 @@ class Log
      */
     public static function register( $error, $context, array $options = array() )
     {
+        if ( !defined( 'DIR_LOGS' ) )
+            define( 'DIR_LOGS', DIR_BASE . '/products/logs' );
+
         $log_instance               = new self();
         $log_instance->error        = $error;
         $log_instance->context      = $context;
@@ -77,16 +80,16 @@ class Log
         $log_instance->table        = Config::get( 'logs.error.table' );
         $log_instance->isRoutine    = $context === 'routine';
 
-        $log_instance->canSaveLog();
-
         if ( $context === 'routine' )
             return $log_instance->saveRoutineLog( $log_instance );
 
         $log_instance->makeLogRecord();
+        $log_instance->saveLogDB();
+
+        $log_instance->canSaveLog();
         $log_instance->makeLogText();
         $log_instance->saveLogService();
         $log_instance->saveLogDate();
-        $log_instance->saveLogDB();
     }
 
     /**
@@ -102,8 +105,8 @@ class Log
         $dir_logs   = $this->logPath();
         $text_error = 'Estamos sem permissão para escrever na pasta "%s"';
         
-        if ( !file_exists( $dir_logs ) )
-            return mkdir( $dir_logs, 0777, true );
+        if ( !file_exists( $dir_logs ) && !file_exists( realpath( $dir_logs ) ) )
+            return @mkdir( $dir_logs, 0777, true );
 
         if ( !is_writable( $dir_logs ) )
             exit( sprintf( $text_error, $dir_logs ) );
@@ -122,12 +125,8 @@ class Log
             : null;
         $base_path      = substr( $filename, strlen( DIR_BASE ) );
         $ip             = Request::ipClient();
-        $request        = isset( $_SERVER[ 'REQUEST_URI' ] )
-            ? $_SERVER[ 'REQUEST_URI' ]
-            : $_SERVER[ 'SCRIPT_FILENAME' ];
-        $http_referer   = isset( $_SERVER[ 'HTTP_REFERER' ] )
-            ? $_SERVER[ 'HTTP_REFERER' ]
-            : '';
+        $request        = $_SERVER[ 'REQUEST_URI' ] ?? $_SERVER[ 'SCRIPT_FILENAME' ];
+        $http_referer   = $_SERVER[ 'HTTP_REFERER' ]  ?? '';
         $line           = $this->error[ 'line' ];
         $extra          = class_exists( '\\App\\App' ) && method_exists( '\\App\\App', 'addExceptionData' )
             ? (array) \App\App::addExceptionData()
@@ -145,9 +144,7 @@ class Log
             'ip'        => $ip,
             'request'   => $request,
             'referer'   => $http_referer,
-            'trace'     => isset( $this->error[ 'stack' ] )
-                ? $this->error[ 'stack' ]
-                : null,
+            'trace'     => $this->error[ 'trace' ] ?? '',
             'env'       => ENV,
             'extra'     => $extra,
         ];
@@ -173,18 +170,11 @@ class Log
         $log->addLine( 'ip',        $this->dataLog[ 'ip' ]      );
         $log->addLine( 'request',   $this->dataLog[ 'request' ] );
         $log->addLine( 'referer',   $this->dataLog[ 'referer' ] );
+        $log->addLine( 'trace',     $this->dataLog[ 'trace' ]   );
+        $log->addLine( 'env',       $this->dataLog[ 'env' ]     );
 
         foreach ( $this->dataLog[ 'extra' ] as $key => $value )
             $log->addLine( $key, $value );
-
-        if ( !empty( $this->error[ 'stack' ] ) )
-        {
-            $trace  = PHP_EOL . $this->error[ 'stack' ];
-            $trace  = preg_replace( '@^#@m', '    #', $trace );
-            $trace  = str_replace( DIR_CORE, '[DIR_CORE]', $trace );
-            $trace  = str_replace( DIR_BASE, '[DIR_BASE]', $trace );
-            $log->addLine( 'trace', $trace );
-        }
 
         $this->text = $log->content();
     }
@@ -227,18 +217,10 @@ class Log
     protected function saveLogDate()
     {
         // Prepara os possíveis caminhos do arquivo de log
-        $year_path      = $this->logPath()
-            . '/' . date( 'Y' );
-        
-        $month_path     = $year_path
-            . '/' . date( 'm' );
-        
-        $day_path       = $month_path
-            . '/' . date( 'd' );
-        
-        $hour_path      = $day_path
-            . '/' . date( 'H' );
-
+        $year_path      = $this->logPath() . '/' . date( 'Y' );
+        $month_path     = $year_path . '/' . date( 'm' );
+        $day_path       = $month_path. '/' . date( 'd' );
+        $hour_path      = $day_path . '/' . date( 'H' );
         $log_contexts   = array(
             'year'      => $year_path,
             'month'     => $month_path,
@@ -246,19 +228,19 @@ class Log
         );
         
         // Tenta salvar o log
+
         foreach ( $log_contexts as $freq => $path )
         {
             if ( $freq === 'day' )
                 return $this->write( $path );
 
-            if ( !file_exists( $path ) )
-            {
-                mkdir( $path, 0777, true );
+            if ( file_exists( $path ) || file_exists( realpath( $path ) )  )
                 continue;
-            }
             
-            if ( !is_writable( $path ) )
+            if ( !is_writable( dirname( $path ) ) )
                 exit( "Estamos sem permissão para criar a pasta '$path'!" );
+
+            @mkdir( $path, 0777, true );
         }
     }
 
@@ -270,14 +252,15 @@ class Log
         if ( !$this->dbTarget )
             return;
 
-        $this->dataLog[ 'extra' ] = json_encode( $this->dataLog[ 'extra' ] );
+        $data           = $this->dataLog;
+        $data[ 'extra' ]= json_encode( $data[ 'extra' ] );
         $columns        = array_keys( $this->dataLog );
         $columns        = '`' . implode( '`, `', $columns ) . '`';
 
         foreach ( $this->dataLog as $key => $value )
             $params[]   = SQL::makeParam();
 
-        $this->dataLog  = array_combine( $params, $this->dataLog );
+        $data           = array_combine( $params, $data );
         $params         = implode( ', ', $params );
 
         $sql            = "INSERT INTO `{$this->table}` ($columns) VALUES( $params )";
@@ -292,7 +275,7 @@ class Log
             die( $msg );
         }
 
-        $result         = $db->execute( $sql, $this->dataLog );
+        $result         = $db->execute( $sql, $data );
     }
 
     /**
@@ -302,6 +285,7 @@ class Log
      */
     protected function write( $file_path )
     {
+        $base       = substr( $file_path, 0, -3 );
         $logFile    = new \SplFileObject( $file_path . '_feature.errors', 'a' );
         $log_saved  = $logFile->fwrite( $this->text . PHP_EOL );
         $logFile    = null;
@@ -324,6 +308,8 @@ class Log
      */
     protected function saveRoutineLog( $inst )
     {
+        $this->canSaveLog();
+
         $name           = defined( 'ROUTINE_NAME' )
             ? ROUTINE_NAME
             : 'RoutinesHandler';
@@ -347,17 +333,22 @@ class Log
         $log_filename   = DIR_LOGS . "/routine/{$name}.log";
         $error          = preg_replace( '/[\r\n]+/', PHP_EOL . '           ', $this->error[ 'message' ] );
 
+        ob_start();
+        debug_print_backtrace( 1 );
+        $trace          = ob_get_clean();
         $log            = new IniMaker();
         $log->addSection( uniqid( '', true ) );
         $log->addLine( 'START', $start );
         $log->addLine( 'END', $end );
         $log->addLine( 'DURATION', $duration );
         $log->addLine( 'RESULT', $error );
-        $log->addLine( 'TRACE', $inst->error[ 'stack' ] );
+        $log->addLine( 'TRACE', $trace );
 
         $log_file       = new \SplFileObject( $log_filename, 'a' );
         $result         = $log_file->fwrite( $log->content() . PHP_EOL );
         $log_file       = null;
+        
+        chmod( $log_filename, 0777 );
 
         return $result;
     }

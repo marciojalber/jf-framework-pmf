@@ -34,15 +34,17 @@ final class ErrorHandler
     {
         if ( !$error = error_get_last() )
             return;
-        
+
         if ( JF_TESTING )
         {
             print_r( $error );
             return;
         }
 
-        $error[ 'type' ] = 'FATAL';
-        
+        $loaded_classes     = Autoloader::loadedClasses( 1 );
+        $error[ 'type' ]    = 'FATAL';
+        $error[ 'trace' ]   = $loaded_classes;
+
         Log::register( $error, 'error' );
         Error_Responder::send( $error );
     }
@@ -52,14 +54,19 @@ final class ErrorHandler
      */
     public static function error( $code, $message, $file, $line )
     {
-        $error = array(
-            'code'      => $code,
-            'message'   => $message,
-            'file'      => $file,
-            'line'      => $line,
-            'type'      => 'ERROR',
+        ob_start();
+        debug_print_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
+        $trace              = trim( ob_get_clean() );
+        $loaded_classes     = Autoloader::loadedClasses( 1 );
+        $error              = array(
+            'code'          => $code,
+            'message'       => $message,
+            'file'          => $file,
+            'line'          => $line,
+            'type'          => 'ERROR',
+            'trace'         => $trace,
         );
-        
+
         if ( JF_TESTING )
         {
             print_r( $error );
@@ -84,7 +91,7 @@ final class ErrorHandler
             'file'      => $exception->getFile(),
             'line'      => $exception->getLine(),
             'type'      => 'EXCEPTION',
-            'stack'     => $exception->getTraceAsString(),
+            'trace'     => trim( $exception->getTraceAsString() ),
         );
         
         if ( JF_TESTING )

@@ -23,11 +23,6 @@ class Autodoc extends \StdClass
     protected $onlyReplaceFiles = 0;
 
     /**
-     * Lista dos esquemas e seus respectivos models.
-     */
-    protected $schemas          = [];
-
-    /**
      * Lista dos serviços encontrados.
      */
     protected $services         = [];
@@ -38,9 +33,19 @@ class Autodoc extends \StdClass
     protected $routines         = [];
 
     /**
-     * Conteúdo da documentação.
+     * Conteúdo da documentação dos serviços.
      */
     protected $doc              = [];
+
+    /**
+     * Módulos dos serviços.
+     */
+    protected $modules          = [];
+
+    /**
+     * Conteúdo da documentação das páginas.
+     */
+    protected $pages            = [];
 
     /**
      * Módulos das páginas.
@@ -48,9 +53,14 @@ class Autodoc extends \StdClass
     protected $pageModules      = [];
 
     /**
-     * Módulos informados.
+     * Inicia uma instância do Autodoc.
      */
-    protected $modules          = [];
+    public function __construct()
+    {
+        $this->lenbase  = strlen( DIR_BASE ) + 1;
+        $this->lenserv  = strlen( DIR_SERVICES );
+        $this->lenviews = strlen( DIR_VIEWS );
+    }
 
     /**
      * Inicia uma instância do Autodoc.
@@ -68,6 +78,15 @@ class Autodoc extends \StdClass
         if ( !empty( $args->{'-c'} ) )
             $inst->contexts = preg_split( '@ *, *@', $args->{'-c'} );
 
+        if ( empty( $inst->contexts ) )
+        {
+            echo PHP_EOL;
+            echo "Nenhum contexto informado." . PHP_EOL;
+            echo "Para mais informações, use \e[33mphp cmd\autodoc.php -h\e[0m.";
+            echo PHP_EOL;
+            exit;
+        }
+
         return $inst;
     }
 
@@ -79,32 +98,34 @@ class Autodoc extends \StdClass
         $this->config();
         $this->clearPaths();
 
-        if ( !$this->contexts || in_array( 'models', $this->contexts ) )
+        if ( in_array( 'models', $this->contexts ) )
             $this->parseModels();
 
-        if ( !$this->contexts || in_array( 'pages', $this->contexts ) )
+        if ( in_array( 'pages', $this->contexts ) )
         {
             $total = $this->parsePages( DIR_VIEWS );
+            $this->saveContentPages();
             $this->savePageModules();
             $this->savePageTotals( $total );
+            $this->sendLog( 'Conclusão da captura das páginas' );
         }
 
-        if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
+        if ( in_array( 'routines', $this->contexts ) )
         {
             $this->parseRoutines( DIR_ROUTINES );
             $this->saveRoutines();
         }
 
-        if ( !$this->contexts || in_array( 'domain', $this->contexts ) )
+        if ( in_array( 'domain', $this->contexts ) )
         {
             $this->parseServices( DIR_SERVICES );
-            $this->sendLog( 'Conclusão dos services', 1 );
+            $this->sendLog( 'Conclusão dos services' );
             $this->saveContentFiles();
             $this->saveDomain();
             $this->saveModules();
         }
         
-        $this->sendLog();
+        $this->sendLog( null, 1 );
     }
 
     /**
@@ -114,10 +135,6 @@ class Autodoc extends \StdClass
     {
         $this->start    = new \DateTime();
         $this->last     = $this->start;
-        $this->lenbase  = strlen( DIR_BASE ) + 1;
-        $this->lenserv  = strlen( DIR_SERVICES );
-        $this->lenviews = strlen( DIR_VIEWS );
-        $this->schemas  = (object) [];
         $paths          = [
             DIR_BASE . '/doc',
             DIR_BASE . '/doc/models',
@@ -146,19 +163,19 @@ class Autodoc extends \StdClass
         if ( $this->onlyReplaceFiles )
             return;
 
-        if ( !$this->contexts || in_array( 'domain', $this->contexts ) )
+        if ( in_array( 'domain', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/services/modules' );
 
-        if ( !$this->contexts || in_array( 'models', $this->contexts ) )
+        if ( in_array( 'models', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/models' );
 
-        if ( !$this->contexts || in_array( 'pages', $this->contexts ) )
+        if ( in_array( 'pages', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/pages/modules' );
 
-        if ( !$this->contexts || in_array( 'routines', $this->contexts ) )
+        if ( in_array( 'routines', $this->contexts ) )
             $this->clearDocPath( DIR_BASE . '/doc/routines' );
 
-        $this->sendLog( 'Limpeza das pastas realizada', 1 );
+        $this->sendLog( 'Limpeza das pastas realizada' );
     }
 
     /**
@@ -189,8 +206,6 @@ class Autodoc extends \StdClass
     private function parseModels()
     {
         $dir            = new \FileSystemIterator( DIR_APP . '/DTO' );
-        $model_sufix    = '__Model.php';
-        $model_len      = strlen( $model_sufix );
 
         foreach ( $dir as $schema )
         {
@@ -198,67 +213,241 @@ class Autodoc extends \StdClass
                 continue;
 
             $scname         = $schema->getFilename();
-            $binds          = [];
-            $puml           = "@startuml
-!define DARKBLUE
-!includeurl https://raw.githubusercontent.com/Drakemor/RedDress-PlantUML/master/style.puml" . PHP_EOL . PHP_EOL;
-            $schema         = new \FileSystemIterator( $schema );
-            $entities       = [];
-
-            foreach ( $schema as $dto )
-            {
-                if ( !$dto->isDir() )
-                    continue;
-                
-                $dto         = new \FileSystemIterator( $dto );
-
-                foreach ( $dto as $item )
-                {
-                    $filename   = $item->getFilename();
-                    $pathname   = $item->getPathname();
-
-                    if ( substr( $filename, -$model_len ) != $model_sufix )
-                        continue;
-
-                    if ( substr( $filename, 0, 1 ) == '_' )
-                        continue;
-                    
-                    $entity     = $this->parseEntity( $filename, $pathname );
-                    $entities[] = $entity->content;
-                    $binds      = array_merge( $binds, $entity->binds );
-                }
-            }
-
-            $puml       .= $entities
-                ? implode( PHP_EOL, $entities ) . PHP_EOL
-                : '';
-            $puml       .= $binds
-                ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
-                : '';
-            $puml       .= '@enduml';
-            $content    = $puml;
-            
-            $encoded    = $this->encode( $content );
-            $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
-            $content    = file_get_contents( $url );
-            $filepath   = $content
-                ? DIR_BASE . '/doc/models/' . $scname . '.svg'
-                : DIR_BASE . '/doc/models/' . $scname . '.puml';
-
-            $content
-                ? file_put_contents( $filepath, $content )
-                : file_put_contents( $filepath, $puml );
-
-            $this->sendLog( 'Modelagem do DBModel ' . $scname );
+            $this->parseSchemaPath( $scname );
         }
 
-        $this->sendLog( 'Conclusão da modelagem dos DBModel', 1 );
+        $this->sendLog( 'Conclusão da modelagem dos DBModel' );
     }
 
     /**
-     * Captura os dados da entidade.
+     * Captura os modelos representativos de um esquema de conexão específico.
      */
-    private function parseEntity( $filename, $pathname )
+    public function parseSchemaPath( $scname )
+    {
+        $schema_path    = DIR_APP . '/DTO/' . $scname;
+        $schema_dir     = new \FilesystemIterator( $schema_path );
+        $model_sufix    = '__Model.php';
+        $model_len      = strlen( $model_sufix );
+        $groups         = [];
+        $binds          = [];
+        $uml            = "";
+        /*
+        $puml           = "@startuml
+!define DARKBLUE
+!includeurl https://raw.githubusercontent.com/Drakemor/RedDress-PlantUML/master/style.puml" . PHP_EOL . PHP_EOL;
+        */
+        $entities       = [];
+
+        foreach ( $schema_dir as $dto )
+        {
+            if ( !$dto->isDir() )
+                continue;
+            
+            $dto            = new \FileSystemIterator( $dto );
+
+            foreach ( $dto as $item )
+            {
+                $filename   = $item->getFilename();
+                $pathname   = $item->getPathname();
+
+                if ( substr( $filename, -$model_len ) != $model_sufix )
+                    continue;
+
+                if ( substr( $filename, 0, 1 ) == '_' )
+                    continue;
+                
+                // $entity     = $this->parseEntityPlantUml( $filename, $pathname );
+                $entity                 = $this->parseEntityGleekIO(
+                    $filename,
+                    $pathname,
+                    $groups
+                );
+                $tbname                 = $entity->tbname;
+                $entities[ $tbname ]    = $entity->content;
+                $binds                  = array_merge( $binds, $entity->binds );
+            }
+        }
+
+        foreach ( $groups as $group => $items )
+        {
+            $uml    .= '/g ' . $group . PHP_EOL;
+
+            foreach ( $items as $entity )
+            {
+                $uml .= preg_replace( '@^@m', '    ', $entities[ $entity ] ) . PHP_EOL;
+                unset( $entities[ $entity ] );
+            }
+        }
+
+        $uml        .= $entities
+            ? implode( PHP_EOL, $entities ) . PHP_EOL
+            : '';
+        $uml        .= $binds
+            ? implode( PHP_EOL, $binds ) . PHP_EOL . PHP_EOL
+            : '';
+
+        $uml        = trim( $uml ) . PHP_EOL;
+        $content    = null;
+        /*
+        $uml        .= '@enduml';
+        $content    = $uml;
+        */
+        
+        /*
+        $encoded    = $this->encode( $content );
+        $url        = "https://www.plantuml.com/plantuml/svg/{$encoded}";
+        $content    = file_get_contents( $url );
+        $filepath   = $content
+            ? DIR_BASE . '/doc/models/' . $scname . '.svg'
+            : DIR_BASE . '/doc/models/' . $scname . '.uml';
+        */
+        $filepath   = DIR_BASE . '/doc/models/' . $scname . '.uml';
+
+        $content
+            ? file_put_contents( $filepath, $content )
+            : file_put_contents( $filepath, $uml );
+    }
+
+    /**
+     * Captura os dados da entidade para o Gleek.io.
+     */
+    private function parseEntityGleekIO( $filename, $pathname, &$groups )
+    {
+        $entityname     = substr( $filename, 0, -11 );
+        $classname      = substr( $pathname, $this->lenbase, -4 );
+        $classname      = str_replace( '/', '\\', $classname );
+        $ref            = new \ReflectionClass( $classname );
+        $attrs          = $ref->getAttributes();
+        $props          = $ref->getProperties();
+        $methods        = $ref->getMethods();
+        $cols           = [];
+        $binds          = [];
+        $props_parse    = [ 'type', 'desc' ];
+
+        $comment        = $ref->getDocComment();
+        $comment        = ClassDocParser::getDoc( $comment );
+        $entitydesc     = $comment->desc;
+        $tbname         = $entityname;
+        $doc_group      = null;
+
+        foreach ( $attrs as $attr )
+        {
+            $name   = preg_replace( '@.*\\\@', '', $attr->getName() );
+            
+            if ( $name != 'table' )
+                continue;
+
+            $tbname = $attr->getArguments()[0];
+            break;
+        }
+
+        $filetrait      = str_replace( '__Model', '__Tasks', $pathname );
+        $traitname      = str_replace( '__Model', '__Tasks', $classname );
+
+        if ( file_exists( $filetrait ) )
+        {
+            $ref_trait      = new \ReflectionClass( $traitname );
+            $trait_attrs    = $ref_trait->getAttributes();
+
+            foreach ( $trait_attrs as $attr )
+            {
+                $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
+                
+                if ( $name != 'docGroup' )
+                    continue;
+
+                $doc_group  = $attr->getArguments()[0];
+                break;
+            }
+
+            if ( $doc_group && !isset( $groups[ $doc_group ] ) )
+                $groups[ $doc_group ] = [];
+
+            if ( $doc_group )
+                $groups[ $doc_group ][] = $tbname;
+        }
+
+        foreach ( $props as $prop )
+        {
+            if ( $prop->isStatic() && $prop->isProtected() && $prop->getName() == 'fks' )
+            {
+                $fks = $prop->getDefaultValue();
+
+                foreach ( $fks as $fk => $ref )
+                    $binds[] = "$tbname  - $fk:{$ref[ 'col' ]} -> {$ref[ 'table' ]}";
+            }
+
+            if ( !$prop->isPublic() || $prop->isStatic() )
+                continue;
+            
+            $colname    = $prop->name;
+            $coltype    = 'TYPE';
+            $coldesc    = 'DESC';
+            $attrs      = $prop->getAttributes();
+            $pk         = '';
+            
+            if ( $attrs )
+            {
+                foreach ( $attrs as $attr )
+                {
+                    $name       = preg_replace( '@.*\\\@', '', $attr->getName() );
+                    $val        = $attr->getArguments()[0] ?? null;
+
+                    if ( $name == 'priKey' )
+                    {
+                        $pk = ' <PK>';
+                        continue;
+                    }
+
+                    if ( !in_array( $name, $props_parse ) )
+                        continue;
+
+                    ${'col' . $name} = $val;
+                }
+            }
+
+            $col        = "    $colname: $coltype$pk";
+            $cols[]     = $col;
+        }
+
+        foreach ( $methods as $i => &$method )
+        {
+            if ( $method->class == 'JF\\DB\\DTO' )
+            {
+                unset( $methods[ $i ] );
+                continue;
+            }
+
+            $returntype = (string) $method->getReturnType();
+            $ctnmethod  = $method->isPublic()
+                ? '    + '
+                : '    - ';
+            $ctnmethod  .= $method->name . '()';
+            $ctnmethod  .= $returntype
+                ? ': ' . $returntype
+                : '';
+            $method     = $ctnmethod;
+        }
+
+        $content    = $tbname . ':db' . PHP_EOL;
+        $content    .= implode( PHP_EOL, $cols ) . PHP_EOL;
+        $content    .= $methods
+            ? implode( PHP_EOL, $methods ) . PHP_EOL
+            : '';
+
+        $res            = (object) [
+            'tbname'    => $tbname,
+            'content'   => $content,
+            'binds'     => $binds,
+        ];
+
+        return $res;
+    }
+
+    /**
+     * Captura os dados da entidade para o PlantUML.
+     */
+    private function parseEntityPlantUml( $filename, $pathname )
     {
         $entityname     = substr( $filename, 0, -11 );
         $classname      = substr( $pathname, $this->lenbase, -4 );
@@ -284,28 +473,6 @@ class Autodoc extends \StdClass
 
             $tbname = $attr->getArguments()[0];
             break;
-        }
-
-        foreach ( $methods as $i => &$method )
-        {
-            if ( $method->class == 'JF\\DB\\DTO' )
-            {
-                unset( $methods[ $i ] );
-                continue;
-            }
-
-            $comment    = $method->getDocComment();
-            $comment    = ClassDocParser::getDoc( $comment );
-            $ctnmethod  = '  ' . $comment->desc . PHP_EOL;
-            $returntype = (string) $method->getReturnType();
-            $ctnmethod  .= $method->isPublic()
-                ? '  + '
-                : '  - ';
-            $ctnmethod  .= $method->name . '()';
-            $ctnmethod  .= $returntype
-                ? ': ' . $returntype
-                : '';
-            $method     = $ctnmethod;
         }
 
         foreach ( $props as $prop )
@@ -351,6 +518,28 @@ class Autodoc extends \StdClass
             $cols[]     = $col;
         }
 
+        foreach ( $methods as $i => &$method )
+        {
+            if ( $method->class == 'JF\\DB\\DTO' )
+            {
+                unset( $methods[ $i ] );
+                continue;
+            }
+
+            $comment    = $method->getDocComment();
+            $comment    = ClassDocParser::getDoc( $comment );
+            $ctnmethod  = '  ' . $comment->desc . PHP_EOL;
+            $returntype = (string) $method->getReturnType();
+            $ctnmethod  .= $method->isPublic()
+                ? '  + '
+                : '  - ';
+            $ctnmethod  .= $method->name . '()';
+            $ctnmethod  .= $returntype
+                ? ': ' . $returntype
+                : '';
+            $method     = $ctnmethod;
+        }
+
         $content    = "entity \"$entityname\" as $tbname {" . PHP_EOL;
         $content    .= '  ' . $entitydesc . PHP_EOL;
         $content    .= '  --' . PHP_EOL;
@@ -372,19 +561,20 @@ class Autodoc extends \StdClass
      */
     private function parsePages( $path )
     {
-        static $docpages    = DIR_BASE . '/doc/pages/';
         static $totals      = null;
+        static $basepages   = DIR_BASE . '/doc/pages/';
 
         if ( !$totals )
         {
             $totals      = (object) [
+                'totalModules'  => 0,
                 'pages'         => 0,
                 'helps'         => 0,
                 'autodoc'       => 0,
             ];
         }
 
-        $dir = new \FileSystemIterator( $path );
+        $dir            = new \FileSystemIterator( $path );
 
         foreach ( $dir as $item )
         {
@@ -399,10 +589,23 @@ class Autodoc extends \StdClass
                 continue;
             }
 
-            if ( $filename == 'autodoc-module' )
+            if ( $filename == 'module.ini' )
             {
                 $route  = substr( $route, 0, -15 );
-                $this->pageModules[ $route ] = file_get_contents( $subpath );
+                $total  = count( $this->pageModules ) + 1;
+                $name   = 'module' . $total;
+                $path   = $basepages . '/modules/' . $name;
+
+                if ( !file_exists( $path ) )
+                    mkdir( $path );
+
+                $content_ini        = json_decode( json_encode( parse_ini_file( $subpath ) ) );
+                $this->pageModules[ $name ] = (object) [
+                    'name'          => $name,
+                    'title'         => $content_ini,
+                    'route'         => $route,
+                    'totalPages'    => 0,
+                ];
                 continue;
             }
 
@@ -414,11 +617,13 @@ class Autodoc extends \StdClass
             $pagehelp               = $subpathbase . '/pagehelp.php';
             $pageini                = $subpathbase . '/view.ini';
             $pagedoc                = $subpathbase . '/_view.autodoc';
+            $namesdoc               = $subpathbase . '/_view.docnames';
             $ini                    = json_decode( json_encode( parse_ini_file( $pageini, 1 ) ) );
             $content                = (object) [];
             $content->route         = substr( $route, 0, -9 );
             $content->help          = '';
             $content->parts         = '';
+            $content->names         = (object) [];
 
             if ( file_exists( $pagehelp ) )
             {
@@ -432,6 +637,9 @@ class Autodoc extends \StdClass
                 ++$totals->autodoc;
             }
 
+            if ( file_exists( $namesdoc ) )
+                $content->names     = json_decode( file_get_contents( $namesdoc ) );
+
             $content->permissions   = isset( $ini->PERMISSIONS )
                 ? $ini->PERMISSIONS
                 : [];
@@ -439,14 +647,40 @@ class Autodoc extends \StdClass
                 ? $ini->DATA
                 : [];
             
-            $route_filename = str_replace( '/', '.', $route );
-            $filetarget     = "$docpages/modules/$route_filename.json";
-            $content        = $this->jsonEncode( $content );
-            
-            file_put_contents( $filetarget, $content );
+            $route                  = substr( $route, 0, -9 );
+            $this->pages[ $route ]  = $content;
         }
 
         return $totals;
+    }
+
+    /**
+     * Salva a documentação das página.
+     */
+    private function saveContentPages()
+    {
+        static $docpages    = DIR_BASE . '/doc/pages';
+        $tot_modules        = count( $this->pageModules );
+
+        foreach ( $this->pages as $route => $content )
+        {
+            $route_file = str_replace( '/', '.', $route );
+            $filetarget = "$docpages/modules/$route_file.json";
+            $content    = $this->jsonEncode( $content );
+            $mod_index  = 0;
+
+            foreach ( array_reverse( $this->pageModules ) as $name => $module )
+            {
+                if ( !str_starts_with( $route, $module->route ) )
+                    continue;
+
+                ++$module->totalPages;
+                $filetarget = "$docpages/modules/{$name}/$route_file.json";
+                break;
+            }
+
+            file_put_contents( $filetarget, $content );
+        }
     }
 
     /**
@@ -454,8 +688,9 @@ class Autodoc extends \StdClass
      */
     private function savePageModules()
     {
+        $basepages  = DIR_BASE . '/doc/pages/';
         $content    = $this->jsonEncode( $this->pageModules );
-        $filename   = DIR_BASE . '/doc/pages/modules-list.json';
+        $filename   = $basepages . 'modules-list.json';
 
         file_put_contents( $filename, $content );
     }
@@ -465,6 +700,7 @@ class Autodoc extends \StdClass
      */
     private function savePageTotals( $totals )
     {
+        $totals->totalModules = count( $this->pageModules );
         $content    = $this->jsonEncode( $totals );
         $filename   = DIR_BASE . '/doc/pages/totals.json';
         
@@ -530,7 +766,7 @@ class Autodoc extends \StdClass
         $content    = $this->jsonEncode( $this->routines );
         $filename   = DIR_BASE . '/doc/routines/routines.json';
         file_put_contents( $filename, $content );
-        $this->sendLog( 'Conclusão da captura das rotinas', 1 );
+        $this->sendLog( 'Conclusão da captura das rotinas' );
     }
 
     /**
@@ -561,19 +797,17 @@ class Autodoc extends \StdClass
             $route      = implode( '/', $route );
             $route      = strtolower( $route );
 
-            if ( $filename == 'autodoc-module' )
+            if ( $filename == 'module.ini' )
             {
                 $total      = count( $this->modules ) + 1;
                 $name       = 'module' . $total;
-                $content    = trim( file_get_contents( $subpath ) );
-                $content    = preg_split( '@[\n\r]+@', $content );
-                $title      = array_shift( $content );
+                $content    = json_decode( json_encode( file_get_contents( $subpath ) ) );
                 $title      = preg_replace( '@\[|\]@', '', $title );
                 $this->modules[ $name ] = (object) [
                     'name'              => $name,
-                    'title'             => $title,
+                    'title'             => $content->name,
                     'route'             => $route,
-                    'text'              => $content,
+                    'text'              => implode( PHP_EOL, $content->features ),
                     'totServices'       => 0,
                     'servicesWithDoc'   => 0,
                     'docCoverage'       => 0,
@@ -802,7 +1036,7 @@ class Autodoc extends \StdClass
         if ( $domain_uml )
             file_put_contents( $filepath, $domain_uml );
         
-        $this->sendLog( 'Modelagem do domínio concluída', 1 );
+        $this->sendLog( 'Modelagem do domínio concluída' );
     }
 
     /**
@@ -830,7 +1064,7 @@ class Autodoc extends \StdClass
     /**
      * Envia um log pra tela.
      */
-    private function sendLog( $content = '', $sep = 0 )
+    private function sendLog( $content = '', $in_line = 0 )
     {
         $now        = new \DateTime();
         $start      = $this->last;
@@ -856,7 +1090,7 @@ class Autodoc extends \StdClass
         $last       = "$hr:$min:$seg.$mili";
         echo "$content: $time [$last]". PHP_EOL;
         
-        if ( $sep )
+        if ( !$in_line )
             echo PHP_EOL;
 
         if ( $fim )
@@ -874,7 +1108,7 @@ Ajuda de uso do JF-AUTODOC:
 ===========================
 
 Este recurso cria documentação automática para a aplicação.
-Modo de uso: \e[33mphp cmd/autodoc.php\e[0m [-r] [-c:CONTEXTS]
+Modo de uso: \e[33mphp cmd/autodoc.php\e[0m [-r] -c:CONTEXTS
 
 \e[33m-r\e[0m   ONLY REPLACE
      Sobrescreve os arquivos existentes com os novos gerados e preserva o restante.

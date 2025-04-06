@@ -191,9 +191,7 @@ class DB
     public function config( $context = null )
     {
         if ( !$context )
-        {
             return $this->config; 
-        }
 
         return !empty( $this->config->$context )
             ? $this->config->$context

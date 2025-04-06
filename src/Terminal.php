@@ -60,9 +60,9 @@ final class Terminal
             define( 'DIR_CONTROLLERS',      DIR_APP  . '/Controllers' );
             define( 'DIR_DOMAIN',           DIR_APP  . '/Domain' );
                 define( 'DIR_FEATURES',     DIR_DOMAIN . '/Features' );
-                define( 'DIR_SERVICES',     DIR_DOMAIN . '/Services' );
                 define( 'DIR_RULES',        DIR_DOMAIN . '/Rules' );
             define( 'DIR_ROUTINES',         DIR_APP  . '/Routines' );
+            define( 'DIR_SERVICES',     DIR_APP . '/Services' );
         define( 'DIR_CONFIG',               DIR_BASE . '/config' );
         define( 'DIR_MODELS',           DIR_APP  . '/Models' );
         define( 'DIR_TEMPLATES',        DIR_BASE . '/templates' );
@@ -96,11 +96,11 @@ final class Terminal
     private static function configPHPEnv()
     {
         // Configurações iniciais do PHP
-        ini_set( 'display_errors',          0 );
+        ini_set( 'display_errors',          1 );
         ini_set( 'display_startup_errors',  0 );
         ini_set( 'log_errors',              0 );
         ini_set( 'error_reporting',         E_ALL ^ E_STRICT );
-        ini_set( 'zlib.output_compression', 1 );
+        // ini_set( 'zlib.output_compression', 1 );
 
         // Registra manipuladores
         Autoloader::register();
@@ -129,8 +129,11 @@ final class Terminal
      */
     private static function defineProductPaths()
     {
-        $products_path      = Config::get( 'products.path', 'products' );
-        $products_path      = realpath( DIR_BASE . '/' . $products_path );
+        $products_path      = Config::get( 'app.productsPath', 'products' );
+        
+        while ( strpos( $products_path, '../' ) )
+            $products_path  = preg_replace( '@(.*)/(.*?)/\.\./@', '$1/', $products_path );
+
         $products_path      = $products_path
             ? $products_path
             : DIR_BASE . '/products';

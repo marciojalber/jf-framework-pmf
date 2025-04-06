@@ -96,14 +96,23 @@ trait PageMakerJS
             Dir::makeDir( $target_path );
 
         if ( !$use_route_path )
-            return file_put_contents( $filetarget, $source );
+        {
+            file_put_contents( $filetarget, $source );
+            ParserHTML::duplicateFile( $filetarget );
+            return;
+        }
         
         file_exists( $filetarget ) && @unlink( $filetarget );
         
         if ( !$source_is_content )
-            return copy( $source, $filetarget );
+        {
+            copy( $source, $filetarget );
+            ParserHTML::duplicateFile( $filetarget );
+            return;
+        }
 
         file_put_contents( $filetarget, $source );
+        ParserHTML::duplicateFile( $filetarget );
     }
 
     /**

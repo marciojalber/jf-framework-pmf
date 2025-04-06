@@ -33,6 +33,8 @@ class Responder
         'xls',
         'xml',
         'txt',
+        'yml',
+        'yaml',
     ];
 
     /**
@@ -112,7 +114,7 @@ class Responder
         http_response_code( 200 );
         
         $response_type      = Router::get( 'response_type' );
-        $errors_format      = [ 'json', 'php', 'xml', 'txt' ];
+        $errors_format      = [ 'json', 'php', 'xml', 'txt', 'yml', 'yaml' ];
         $response_type      = $exception && !in_array( $response_type, $errors_format )
             ? 'json'
             : $response_type;
@@ -141,7 +143,7 @@ class Responder
             header( "Content-Type: $ct; charset=$charset" );
         
         // Define os demais atributos do header
-        $plain_formats  = array( 'html', 'json', 'php', 'xml', 'txt' );
+        $plain_formats  = array( 'html', 'json', 'php', 'xml', 'txt', 'yml', 'yaml' );
         $plain_format   = in_array( $type, $plain_formats );
 
         if ( $type === 'event' )
@@ -203,14 +205,13 @@ class Responder
             
             if ( !in_array( $response_type, $direct_data ) )
             {
-                $response   = array_merge( [
-                    'type'  => 'success',
-                    'text'  => $instance->msg(),
-                ], $response );
+                $response[ 'type'] = 'success';
+                $response[ 'text'] = $instance->msg();
             }
 
             if ( $response && $after && $response_type != 'pdf' )
-                $response   = array_merge( $response, $after );
+                foreach( $after as $key => $val )
+                    $response[ $key ] = $val;
 
             self::sendSpecificResponse( $response, $instance );
             exit();

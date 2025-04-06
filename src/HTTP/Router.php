@@ -59,8 +59,8 @@ class Router
 
         $default_route  = method_exists( '\App\App', 'defaultRoute' )
             ? \App\App::defaultRoute()
-            : Config::get( 'app.default_route', self::$homePage );
-        
+            : Config::get( 'app.defaultRoute', self::$homePage );
+
         $page_target    = URL_PAGES . '/' . $default_route;
         Request::redirect( $page_target, true );
     }

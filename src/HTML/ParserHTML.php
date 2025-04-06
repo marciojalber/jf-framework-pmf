@@ -86,11 +86,15 @@ final class ParserHTML
         $log_path       = self::path( $route, '_view.build' );
         $parts_path     = self::path( $route, '_view.parts' );
         $doc_path       = self::path( $route, '_view.autodoc' );
-        $pretty_json    = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES;
+        $names_path     = self::path( $route, '_view.docnames' );
+        $pretty_json    = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
 
         file_put_contents( $page_path, $result->html );
+        self::duplicateFile( $page_path );
+
         file_put_contents( $log_path, json_encode( $new_parse, $pretty_json ) );
         file_put_contents( $parts_path, json_encode( $result->parts, $pretty_json ) );
+        file_put_contents( $names_path, json_encode( $result->docNames, $pretty_json ) );
         file_put_contents( $doc_path, $result->doc );
     }
 
@@ -107,9 +111,11 @@ final class ParserHTML
             'time'              => time(),
             'SERVER_ADDR'       => $_SERVER[ 'SERVER_ADDR' ],
             'DIR_BASE'          => DIR_BASE,
+            /*
             'config_servers'    => file_exists( $config_servers_path )
                 ? filemtime( $config_servers_path )
                 : null,
+            */
             'config_ui'         => file_exists( $config_ui_path )
                 ? filemtime( $config_ui_path )
                 : null,
@@ -171,5 +177,32 @@ final class ParserHTML
         
         $content    = implode( PHP_EOL, $content );
         file_put_contents( $path_route . '_view.document', $content );
+    }
+
+    /**
+     * Constrói uma página a partir de uma view.
+     */
+    public static function duplicateFile( $filename )
+    {
+        $path_target    = Config::get( 'ui.duplicateNewFilesTo' );
+
+        if ( !$path_target )
+            return;
+
+        $path_source    = DIR_BASE;
+        $path_target    = preg_replace( '@\/$@', '', $path_target );
+
+        while ( substr( $path_target, 0, 3 ) == '../' ) {
+            $path_target = substr( $path_target, 3 );
+            $path_source = preg_replace( '@(.*)\/.*?$@', '$1', $path_source );
+        }
+
+        $target         = $path_source . substr( $filename, strlen( DIR_BASE ) );
+        $finalpath      = dirname( $target );
+        
+        if ( !file_exists( $finalpath ) )
+            Dir::makeDir( $finalpath );
+
+        file_put_contents( $target, file_get_contents( $filename ) );
     }
 }

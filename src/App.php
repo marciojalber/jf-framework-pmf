@@ -97,7 +97,8 @@ final class App
         
         Router::defineRoute();
 
-        HTML_Responder::send();
+        if ( Router::get( 'type' ) == 'view' )
+            return HTML_Responder::send();
         
         // @todo hijacking desativado
         // Session::init();
@@ -224,9 +225,7 @@ final class App
             : null;
 
         if ( !HTTPS || !$request_scheme || $request_scheme == 'https' )
-        {
             return;
-        }
 
         $url = 'https://' . SERVER . REQUEST_URI;
 

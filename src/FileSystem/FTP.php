@@ -30,19 +30,13 @@ class FTP
         $config  = Config::get( 'ftp.' . $schema );
         
         if ( !( $config && $config->hostname && $config->username && $config->password ) )
-        {
             return null;
-        }
         
         if ( !$ftp = ftp_connect( $config->hostname ) )
-        {
             return null;
-        }
         
         if ( !ftp_login( $ftp, $config->username, $config->password ) )
-        {
             return null;
-        }
         
         $instance           = new self();
         $instance->ftp      = $ftp;
@@ -61,18 +55,12 @@ class FTP
             $folders        = ftp_nlist( $this->ftp, '' );
             
             if ( !in_array( $path_target, $folders ) )
-            {
                 if ( !ftp_mkdir( $ftp, $path_target ) )
-                {
                     return false;
-                }
-            }
         }
         
         if ( !$file_target_name )
-        {
             $file_target_name     = basename( $file_source );
-        }
 
         $fileTarget         = $path_target . '/' . $file_target_name;
         $response           = ftp_put(

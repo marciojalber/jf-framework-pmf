@@ -45,6 +45,9 @@ final class Config
             self::load( $context );
 
         // Tenta retornar a configuração solicitada
+        if ( !isset( self::$config[ $context ] ) )
+            return $default;
+
         $config         = self::$config[ $context ];
         
         if ( is_null( $config ) )
@@ -53,9 +56,7 @@ final class Config
         foreach ( $path as $key )
         {
             if ( !array_key_exists( $key, (array) $config ) )
-            {
                 return $default;
-            }
 
             $config = $config->$key;
         }
@@ -74,9 +75,7 @@ final class Config
             $config = self::get( $path, null, $opts );
 
             if ( !is_null( $config ) )
-            {
                 return $config;
-            }
         }
 
         return $default;
@@ -180,9 +179,20 @@ final class Config
             Dir::makeDir( DIR_CONFIG );
 
         $file_config                = self::path( $context );
-        self::$config[ $context ]   = file_exists( $file_config )
-            ? json_decode( json_encode( include $file_config ) )
-            : null;
+
+        if ( !$file_config )
+            return;
+
+        if ( substr( $file_config, -3 ) == 'php' )
+            self::$config[ $context ]   = include $file_config;
+
+        if ( substr( $file_config, -4 ) == 'yaml' )
+            self::$config[ $context ] = yaml_parse_file( $file_config );
+        
+        if ( substr( $file_config, -3 ) == 'ini' )
+            self::$config[ $context ] = parse_ini_file( $file_config, true );
+
+        self::$config[ $context ] = json_decode( json_encode( self::$config[ $context ] ) );
     }
 
     /**
@@ -190,6 +200,18 @@ final class Config
      */
     public static function path( $path )
     {
-        return DIR_CONFIG . '/' . $path . '.php';
+        $path       = DIR_CONFIG . '/' . $path;
+        $file_yaml  =  $path . '.yaml';
+        $file_php   =  $path . '.php';
+        $file_ini   =  $path . '.ini';
+        
+        if ( file_exists( $file_php ) )
+            return $file_php;
+        
+        if ( file_exists( $file_yaml ) && function_exists( 'yaml_parse_file' ) )
+            return $file_yaml;
+        
+        if ( file_exists( $file_ini ) )
+            return $file_ini;
     }
 }

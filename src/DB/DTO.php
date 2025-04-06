@@ -54,14 +54,14 @@ class DTO extends \StdClass
     protected static $hide      = [];
     
     /**
-     * Colunas da tabela.
-     */
-    protected static $columns   = [];
-    
-    /**
      * Trata-se de uma VIEW.
      */
     protected static $isView    = false;
+    
+    /**
+     * Colunas da tabela.
+     */
+    protected static $columns   = [];
     
     /**
      * Status do registro.
@@ -256,7 +256,6 @@ class DTO extends \StdClass
         $date_pattern   = '/^\d{4}-\d{2}-\d{2}$/';
         $dt_pattern     = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
         $time_pattern   = '/^\d{2}:\d{2}:\d{2}$/';
-        // print_r( $props );
         
         foreach ( $props as $key => $prop )
         {
@@ -409,8 +408,8 @@ class DTO extends \StdClass
                 if ( !preg_match( $time_pattern, $val ) )
                     throw new Warning( "O valor informado para [$label] não é uma hora válida." );
 
-                $hour   = substr( $val, 11, 2 );
-                $min    = substr( $val, 14, 2 );
+                $hour   = substr( $val, 0, 2 );
+                $min    = substr( $val, 3, 2 );
                 $seg    = substr( $val, -2 );
                 
                 if ( $hour < 0 || $hour > 23 )

@@ -8,6 +8,11 @@ namespace JF;
 final class Autoloader
 {
     /**
+     * Trilha manual de arquivos solicitados.
+     */
+    protected static $loadedClasses = [];
+
+    /**
      * Disparado quando ocorrer erros fatais.
      */
     public static function register()
@@ -32,6 +37,8 @@ final class Autoloader
 
         if ( file_exists( $filename ) )
         {
+            self::$loadedClasses[ $class ] = $filename;
+
             include $filename;
             return;
         }
@@ -40,6 +47,8 @@ final class Autoloader
         
         if ( file_exists( $file_vendor ) )
         {
+            self::$loadedClasses[ $class ] = $filename;
+
             include $file_vendor;
             return;
         }
@@ -81,15 +90,17 @@ final class Autoloader
         
         // Se achou a classe
         if ( class_exists( $class ) )
+        {
+            self::$loadedClasses[ $class ] = $vendor_path;
+
             return true;
+        }
         
         // Se a classe não estiver diretamente declarada no arquivo, chama novamente o autoload
         $new_auload_fns = spl_autoload_functions();
         
         if ( count( $new_auload_fns )  > count ( $auload_fns ) )
-        {
             spl_autoload_call( $class );
-        }
     }
 
     /**
@@ -97,6 +108,7 @@ final class Autoloader
      */
     public static function getClassFilename( $classname )
     {
+        /*
         $namespaces     = Config::get( 'namespaces', [] );
         $new_classname  = $classname;
 
@@ -110,10 +122,36 @@ final class Autoloader
         }
 
         $class_path     = str_replace( '\\', '/', $new_classname );
+        */
+        $class_path     = str_replace( '\\', '/', $classname );
         $filename       = substr( $class_path, 0, 3 ) != 'JF/'
             ? DIR_BASE . '/' . $class_path . '.php'
             : DIR_CORE . '/' . substr( $class_path, 3 ) . '.php';
 
         return $filename;
+    }
+
+    /**
+     * Retorna as classes carregadas pelo autoload.
+     */
+    public static function loadedClasses( $printify = 0 )
+    {
+        if ( !$printify )
+            return self::$loadedClasses;
+
+        $res    = ['Loaded classes:'];
+        $total  = 0;
+
+        foreach ( self::$loadedClasses as $class => $filename )
+        {
+            $msg    = str_replace( DIR_BASE, 'APP', $filename );
+            $msg    = str_replace( DIR_CORE, 'JF', $msg );
+            $res[]  = "#{$total} $msg: $class";
+            $total++;
+        }
+
+        $res    = implode( PHP_EOL, $res );
+
+        return $res;
     }
 }

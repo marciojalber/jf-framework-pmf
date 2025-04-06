@@ -289,21 +289,15 @@ class Dir
         $target = (string) $target;
         
         if ( !$source || !$target )
-        {
             return;
-        }
         
         if ( !file_exists( $target ) )
-        {
             mkdir( $target );
-        }
         
         $files = self::getFiles( $source );
 
         foreach ( $files as $file )
-        {
             copy( $source . '/' . $file, $target . '/' . $file );
-        }
         
         return $files;
     }

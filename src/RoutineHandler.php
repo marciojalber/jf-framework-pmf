@@ -86,6 +86,8 @@ class RoutineHandler extends \StdClass
         $len_basepath   = strlen( DIR_BASE ) + 1;
         $len_routpath   = strlen( DIR_ROUTINES ) + 1;
         $obj_path       = new \FilesystemIterator( $path );
+        $sufix          = '__Routine';
+        $lensufix       = strlen( $sufix );
 
         foreach ( $obj_path as $item )
         {
@@ -103,6 +105,9 @@ class RoutineHandler extends \StdClass
                 ? $this->namespace . substr( $routine_class, 12 )
                 : $namespace . substr( $routine_class, strlen( $local ) );
             $routine_class      = str_replace( '/', '\\', $routine_class );
+
+            if ( substr( $routine_class, -$lensufix ) != $sufix )
+                continue;
 
             if ( !class_exists( $routine_class ) )
             {
